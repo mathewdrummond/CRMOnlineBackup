@@ -1097,6 +1097,17 @@ export const crmApi = {
     knowledgeStats() {
       return request("/api/ai/knowledge/stats");
     },
+    knowledgeRoots(options = {}) {
+      return request("/api/ai/knowledge/roots", options);
+    },
+    browseKnowledgeFolders(params = {}, options = {}) {
+      const search = new URLSearchParams();
+      if (params.path) search.set("path", params.path);
+      if (params.query) search.set("query", params.query);
+      if (params.offset !== undefined) search.set("offset", String(params.offset));
+      if (params.limit !== undefined) search.set("limit", String(params.limit));
+      return request(`/api/ai/knowledge/browse?${search.toString()}`, options);
+    },
     listKnowledgeSources() {
       return request("/api/ai/knowledge/sources");
     },

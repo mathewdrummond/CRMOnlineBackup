@@ -6,9 +6,8 @@ import { LocalUser } from "../../types";
 const DEFAULT_ALLOWED_NAS_ROOTS = [
   process.env.FILESYSTEM_ROOT || "",
   "/volume1/joinerflow",
-  "/volume1",
-  "/mnt",
-  "/srv",
+  "/volume1/shared",
+  "/volume1/projects",
 ].map((value) => String(value || "").trim()).filter(Boolean);
 
 export function readConfiguredKnowledgeAllowedRoots() {

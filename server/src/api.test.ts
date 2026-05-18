@@ -317,6 +317,75 @@ describe("server security and reliability", () => {
     }).expect(400);
   });
 
+  test("browses only allowlisted knowledge folders and filters hidden system directories", async () => {
+    const agent = await createAuthenticatedAgent();
+    const allowedRoot = path.join(filesystemRoot, "browse-root");
+    fs.mkdirSync(path.join(allowedRoot, "jobs", "active"), { recursive: true });
+    fs.mkdirSync(path.join(allowedRoot, ".git"), { recursive: true });
+    fs.mkdirSync(path.join(allowedRoot, "@eaDir"), { recursive: true });
+    fs.writeFileSync(path.join(allowedRoot, "readme.txt"), "not a folder");
+    process.env.AI_KNOWLEDGE_ALLOWED_ROOTS = allowedRoot;
+
+    const roots = await agent.get("/api/ai/knowledge/roots").expect(200);
+    expect(roots.body.roots).toEqual([
+      expect.objectContaining({ path: fs.realpathSync.native(allowedRoot), selectable: true }),
+    ]);
+
+    const browse = await agent
+      .get("/api/ai/knowledge/browse")
+      .query({ path: allowedRoot })
+      .expect(200);
+    expect(browse.body.entries.map((entry) => entry.name)).toEqual(["jobs"]);
+    expect(browse.body.entries[0]).toEqual(expect.objectContaining({
+      selectable: true,
+      has_children: true,
+    }));
+
+    await agent
+      .get("/api/ai/knowledge/browse")
+      .query({ path: path.join(allowedRoot, "..", "..") })
+      .expect(403);
+  });
+
+  test("blocks symlink escape during knowledge folder browsing", async () => {
+    const agent = await createAuthenticatedAgent();
+    const allowedRoot = path.join(filesystemRoot, "symlink-root");
+    const outsideRoot = path.join(testRoot, "outside-secret");
+    fs.mkdirSync(allowedRoot, { recursive: true });
+    fs.mkdirSync(outsideRoot, { recursive: true });
+    fs.symlinkSync(outsideRoot, path.join(allowedRoot, "escaped-link"), "dir");
+    process.env.AI_KNOWLEDGE_ALLOWED_ROOTS = allowedRoot;
+
+    const browse = await agent
+      .get("/api/ai/knowledge/browse")
+      .query({ path: allowedRoot })
+      .expect(200);
+    expect(browse.body.entries.map((entry) => entry.name)).not.toContain("escaped-link");
+
+    await agent
+      .get("/api/ai/knowledge/browse")
+      .query({ path: path.join(allowedRoot, "escaped-link") })
+      .expect(404);
+  });
+
+  test("rejects duplicate indexed folder paths", async () => {
+    const agent = await createAuthenticatedAgent();
+    const sourceRoot = path.join(filesystemRoot, "duplicate-root");
+    fs.mkdirSync(sourceRoot, { recursive: true });
+    process.env.AI_KNOWLEDGE_ALLOWED_ROOTS = sourceRoot;
+
+    await agent.post("/api/ai/knowledge/sources").send({
+      label: "First",
+      root_path: sourceRoot,
+      enabled: true,
+    }).expect(201);
+    await agent.post("/api/ai/knowledge/sources").send({
+      label: "Second",
+      root_path: path.join(sourceRoot, "."),
+      enabled: true,
+    }).expect(409);
+  });
+
   test("rejects unknown application module keys from admin updates", async () => {
     const agent = await createAuthenticatedAgent();
     const response = await agent.put("/api/modules").send({

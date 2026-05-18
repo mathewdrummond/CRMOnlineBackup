@@ -25,6 +25,7 @@ import {
   setKnowledgeQueuePaused,
   triggerKnowledgeReindex,
 } from "../ai/knowledge/indexingQueue";
+import { browseKnowledgeFolders, listKnowledgeBrowserRoots } from "../ai/knowledge/folderBrowser";
 import { ensureKnowledgePathAllowed } from "../ai/knowledge/knowledgePermissions";
 import { knowledgeSearchSchema, searchKnowledge } from "../ai/knowledge/retrievalEngine";
 import {
@@ -80,6 +81,13 @@ const knowledgeReindexSchema = z.object({
 
 const knowledgePauseSchema = z.object({
   paused: z.boolean(),
+}).strict();
+
+const knowledgeBrowseQuerySchema = z.object({
+  path: z.string().trim().min(1).max(600),
+  query: z.string().trim().max(120).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 }).strict();
 
 export type AiRouteRegistrationContext = {
@@ -304,6 +312,29 @@ export function registerAiRoutes(app: Express, context: AiRouteRegistrationConte
     }
   });
 
+  app.get("/api/ai/knowledge/roots", (req: Request, res: Response) => {
+    try {
+      if (!context.enforceAiRateLimit(req, res)) return;
+      context.requireAdminApiUser(req);
+      res.json({
+        roots: listKnowledgeBrowserRoots(),
+      });
+    } catch (error) {
+      context.handleRouteError(error, res);
+    }
+  });
+
+  app.get("/api/ai/knowledge/browse", (req: Request, res: Response) => {
+    try {
+      if (!context.enforceAiRateLimit(req, res)) return;
+      context.requireAdminApiUser(req);
+      const query = context.parseBodyWithSchema(req.query, knowledgeBrowseQuerySchema);
+      res.json(browseKnowledgeFolders(query));
+    } catch (error) {
+      context.handleRouteError(error, res);
+    }
+  });
+
   app.post("/api/ai/knowledge/sources", (req: Request, res: Response) => {
     try {
       if (!context.enforceMutationRateLimit(req, res)) return;
@@ -311,6 +342,9 @@ export function registerAiRoutes(app: Express, context: AiRouteRegistrationConte
       context.requireAdminApiUser(req);
       const body = context.parseBodyWithSchema(req.body, knowledgeSourceCreateSchema);
       const rootPath = ensureKnowledgePathAllowed(body.root_path);
+      if (listKnowledgeSources().some((source) => source.root_path === rootPath)) {
+        throw new RouteRequestError(409, "knowledge_source_duplicate_path", "This folder is already configured for indexing.");
+      }
       const created = createKnowledgeSource({
         ...body,
         root_path: rootPath,
@@ -332,9 +366,13 @@ export function registerAiRoutes(app: Express, context: AiRouteRegistrationConte
       context.requireAdminApiUser(req);
       const sourceId = context.readRouteParam(req.params.sourceId);
       const body = context.parseBodyWithSchema(req.body, knowledgeSourceUpdateSchema);
+      const rootPath = body.root_path ? ensureKnowledgePathAllowed(body.root_path) : undefined;
+      if (rootPath && listKnowledgeSources().some((source) => source.id !== sourceId && source.root_path === rootPath)) {
+        throw new RouteRequestError(409, "knowledge_source_duplicate_path", "This folder is already configured for indexing.");
+      }
       const patch = {
         ...body,
-        root_path: body.root_path ? ensureKnowledgePathAllowed(body.root_path) : undefined,
+        root_path: rootPath,
       };
       const updated = updateKnowledgeSource(sourceId, patch);
       if (!updated) {

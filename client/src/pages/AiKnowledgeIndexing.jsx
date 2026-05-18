@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Database, FolderCog, PauseCircle, PlayCircle, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Database, FolderOpen, FolderPlus, PauseCircle, PlayCircle, RefreshCw, Search } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { crmApi } from "@/api/localApiClient";
+import FolderPickerModal from "@/components/ai/FolderPickerModal";
+import IndexedFolderCard from "@/components/ai/IndexedFolderCard";
 
 const DEFAULT_SOURCE_FORM = {
   label: "",
@@ -22,15 +24,6 @@ const DEFAULT_SOURCE_FORM = {
   chunk_overlap: 120,
   scan_interval_minutes: 60,
 };
-
-function formatBytes(value) {
-  const size = Number(value || 0);
-  if (size <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const exponent = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
-  const scaled = size / (1024 ** exponent);
-  return `${scaled.toFixed(scaled >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
-}
 
 function parseList(value) {
   return String(value || "")
@@ -49,6 +42,8 @@ export default function AiKnowledgeIndexing() {
   const [searchResults, setSearchResults] = useState([]);
   const [sourceForm, setSourceForm] = useState(DEFAULT_SOURCE_FORM);
   const [saving, setSaving] = useState(false);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [editingSource, setEditingSource] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -106,6 +101,33 @@ export default function AiKnowledgeIndexing() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSelectFolder = (folderPath) => {
+    if (editingSource) {
+      void handleUpdateSourceFolder(editingSource, folderPath);
+      return;
+    }
+    setSourceForm((current) => ({
+      ...current,
+      root_path: folderPath,
+      label: current.label || folderPath.split("/").filter(Boolean).slice(-1)[0] || "Indexed Folder",
+    }));
+  };
+
+  const handleUpdateSourceFolder = async (source, folderPath) => {
+    try {
+      await crmApi.ai.updateKnowledgeSource(source.id, { root_path: folderPath });
+      toast({ title: "Knowledge source folder updated." });
+      setEditingSource(null);
+      await load();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update folder",
+        description: error instanceof Error ? error.message : "Unexpected error.",
+      });
     }
   };
 
@@ -189,6 +211,17 @@ export default function AiKnowledgeIndexing() {
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+      <FolderPickerModal
+        open={folderPickerOpen}
+        onOpenChange={(open) => {
+          setFolderPickerOpen(open);
+          if (!open) setEditingSource(null);
+        }}
+        value={editingSource?.root_path || sourceForm.root_path}
+        indexedPaths={sources.map((source) => source.root_path)}
+        onSelect={handleSelectFolder}
+        title={editingSource ? "Change Indexed Folder" : "Add Indexed Folder"}
+      />
       <PageHeader
         title="AI Knowledge Indexing"
         subtitle="Configure NAS folders, monitor indexing, and run secure local semantic retrieval."
@@ -236,7 +269,20 @@ export default function AiKnowledgeIndexing() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <Card className="p-5">
-          <h2 className="text-sm font-semibold">Add Indexed Folder</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Add Indexed Folder</h2>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingSource(null);
+                setFolderPickerOpen(true);
+              }}
+            >
+              <FolderPlus className="h-4 w-4" />
+              Browse Folder
+            </Button>
+          </div>
           <div className="mt-4 space-y-3">
             <div className="space-y-1.5">
               <Label>Label</Label>
@@ -247,12 +293,28 @@ export default function AiKnowledgeIndexing() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Folder Path</Label>
-              <Input
-                value={sourceForm.root_path}
-                onChange={(event) => setSourceForm((current) => ({ ...current, root_path: event.target.value }))}
-                placeholder="/volume1/joinerflow/filesystem/jobs"
-              />
+              <Label>Selected Folder</Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={sourceForm.root_path}
+                  readOnly
+                  placeholder="No NAS folder selected"
+                  className="font-mono text-xs"
+                  aria-label="Selected indexed folder path"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingSource(null);
+                    setFolderPickerOpen(true);
+                  }}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Browse
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Folders must be selected from configured NAS allowlisted roots.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -334,32 +396,17 @@ export default function AiKnowledgeIndexing() {
               <p className="text-sm text-muted-foreground">No folder sources configured.</p>
             ) : (
               sources.map((source) => (
-                <div key={source.id} className="rounded-md border p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{source.label}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{source.root_path}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={Boolean(source.enabled)} onCheckedChange={(checked) => void handleToggleSource(source, checked)} />
-                      <Button type="button" size="icon" variant="outline" onClick={() => void handleReindex(source.id)}>
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" size="icon" variant="outline" onClick={() => void handleDeleteSource(source.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground md:grid-cols-4">
-                    <div>Files: <span className="font-medium text-foreground">{Number(source?.stats?.file_count || 0)}</span></div>
-                    <div>Chunks: <span className="font-medium text-foreground">{Number(source?.stats?.chunk_count || 0)}</span></div>
-                    <div>Embeddings: <span className="font-medium text-foreground">{Number(source?.stats?.embedding_count || 0)}</span></div>
-                    <div>Size: <span className="font-medium text-foreground">{formatBytes(source?.stats?.total_bytes || 0)}</span></div>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Last indexed: {source?.stats?.latest_indexed_date || source.last_indexed_date || "Never"}
-                  </div>
-                </div>
+                <IndexedFolderCard
+                  key={source.id}
+                  source={source}
+                  onToggle={(nextSource, checked) => void handleToggleSource(nextSource, checked)}
+                  onReindex={(sourceId) => void handleReindex(sourceId)}
+                  onDelete={(sourceId) => void handleDeleteSource(sourceId)}
+                  onChangeFolder={(nextSource) => {
+                    setEditingSource(nextSource);
+                    setFolderPickerOpen(true);
+                  }}
+                />
               ))
             )}
           </div>
