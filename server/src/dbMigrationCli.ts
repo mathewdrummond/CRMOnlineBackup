@@ -1,9 +1,21 @@
+import { backfillPostgresFromSqlite, initializeDatabase } from "./db";
 import { initializePostgresStore, listPostgresMigrations, postgresModeSummary, verifyPostgresSchema } from "./infrastructure/postgresStore";
 
 async function main() {
   const command = String(process.argv[2] || "status").trim().toLowerCase();
-  if (!["migrate", "status", "verify"].includes(command)) {
-    throw new Error(`Unknown command "${command}". Use migrate, status, or verify.`);
+  if (!["migrate", "status", "verify", "backfill-postgres"].includes(command)) {
+    throw new Error(`Unknown command "${command}". Use migrate, status, verify, or backfill-postgres.`);
+  }
+
+  if (command === "backfill-postgres") {
+    await initializeDatabase();
+    const result = await backfillPostgresFromSqlite();
+    console.log(JSON.stringify({
+      command,
+      summary: postgresModeSummary(),
+      result,
+    }, null, 2));
+    process.exit(0);
   }
 
   await initializePostgresStore();

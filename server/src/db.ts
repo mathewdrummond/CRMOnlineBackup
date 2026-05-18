@@ -6,11 +6,14 @@ import { DEFAULT_INSTALL_ESTIMATOR_SETTINGS } from "./installEstimatorDefaults";
 import { readDatabaseDriver } from "./infrastructure/databaseMode";
 import {
   closePostgresStore,
+  deleteAttachmentVersionsFromPostgres,
   deleteEntityRecordFromPostgres,
   initializePostgresStore,
   postgresModeSummary,
   queryPostgresParitySnapshot,
+  queryPostgresTableCounts,
   writeAuditLogToPostgres,
+  writeAttachmentVersionToPostgres,
   writeEntityRecordToPostgres,
 } from "./infrastructure/postgresStore";
 import { DEFAULT_PRICING_CATEGORIES } from "./pricingCategories";
@@ -1627,6 +1630,61 @@ export async function getPersistenceParitySnapshot(options: { limit?: number; en
   };
 }
 
+export async function backfillPostgresFromSqlite() {
+  await initializePostgresStore();
+  const entityRows = queryDatabaseRows<RawEntityRow>(`
+    SELECT id, entity, data, created_date, updated_date, row_version
+    FROM entity_records
+    ORDER BY entity ASC, updated_date ASC
+  `);
+  const auditRows = queryDatabaseRows<RawAuditRow>(`
+    SELECT
+      id, entity, record_id, action, actor_id, actor_email, actor_name, actor_role,
+      request_source, summary_json, previous_data, next_data, created_date
+    FROM audit_log
+    ORDER BY created_date ASC
+  `);
+  const attachmentVersions = listAllAttachmentVersions();
+
+  for (const row of entityRows) {
+    await writeEntityRecordToPostgres(row.entity, hydrateRow(row));
+  }
+
+  for (const row of auditRows) {
+    const auditRecord = hydrateAuditRow(row);
+    await writeAuditLogToPostgres({
+      id: auditRecord.id,
+      entity: auditRecord.entity,
+      recordId: auditRecord.record_id,
+      action: auditRecord.action,
+      actor: {
+        id: auditRecord.actor_id,
+        email: auditRecord.actor_email,
+        full_name: auditRecord.actor_name,
+        role: auditRecord.actor_role,
+      },
+      requestSource: auditRecord.request_source,
+      summary: auditRecord.summary,
+      previousRecord: auditRecord.previous_data,
+      nextRecord: auditRecord.next_data,
+      createdDate: auditRecord.created_date,
+    });
+  }
+
+  for (const record of attachmentVersions) {
+    await writeAttachmentVersionToPostgres(record);
+  }
+
+  return {
+    sqlite: {
+      entity_rows: entityRows.length,
+      audit_rows: auditRows.length,
+      attachment_version_rows: attachmentVersions.length,
+    },
+    postgres: await queryPostgresTableCounts(),
+  };
+}
+
 export function listSchemaMigrations() {
   return (requireDatabase()
     .prepare(`
@@ -1714,10 +1772,13 @@ export function createAttachmentVersionRecord(
     payload.created_date
   );
 
-  return {
+  const record = {
     ...payload,
     id,
   } as AttachmentVersionRecord;
+  queuePostgresMirror(writeAttachmentVersionToPostgres(record));
+
+  return record;
 }
 
 export function updateAttachmentVersionRecord(versionId: string, updates: Partial<AttachmentVersionRecord>) {
@@ -1782,6 +1843,8 @@ export function updateAttachmentVersionRecord(versionId: string, updates: Partia
     versionId
   );
 
+  queuePostgresMirror(writeAttachmentVersionToPostgres(merged));
+
   return merged;
 }
 
@@ -1792,6 +1855,7 @@ export function deleteAttachmentVersions(attachmentId: string) {
       WHERE attachment_id = ?
     `)
     .run(attachmentId);
+  queuePostgresMirror(deleteAttachmentVersionsFromPostgres(attachmentId));
 }
 
 function ensureScheduleStaffIdentity() {

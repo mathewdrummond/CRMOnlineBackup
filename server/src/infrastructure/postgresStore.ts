@@ -1,5 +1,5 @@
 import { Pool, PoolClient, QueryResult } from "pg";
-import { EntityData, EntityRecord, MutationActor } from "../types";
+import { AttachmentVersionRecord, EntityData, EntityRecord, MutationActor } from "../types";
 import { isPostgresEnabledForRuntime, isPostgresPrimary } from "./databaseMode";
 
 type PostgresMigration = {
@@ -331,8 +331,8 @@ export async function writeAuditLogToPostgres(input: {
   actor?: MutationActor | null;
   requestSource?: string;
   summary: Record<string, unknown>;
-  previousRecord: EntityRecord | null;
-  nextRecord: EntityRecord | null;
+  previousRecord: EntityData | null;
+  nextRecord: EntityData | null;
   createdDate: string;
 }) {
   if (!isPostgresEnabledForRuntime() || !pool) return;
@@ -343,6 +343,19 @@ export async function writeAuditLogToPostgres(input: {
         summary_json, previous_data, next_data, created_date
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12::jsonb, $13::timestamptz)
+      ON CONFLICT (id) DO UPDATE SET
+        entity = EXCLUDED.entity,
+        record_id = EXCLUDED.record_id,
+        action = EXCLUDED.action,
+        actor_id = EXCLUDED.actor_id,
+        actor_email = EXCLUDED.actor_email,
+        actor_name = EXCLUDED.actor_name,
+        actor_role = EXCLUDED.actor_role,
+        request_source = EXCLUDED.request_source,
+        summary_json = EXCLUDED.summary_json,
+        previous_data = EXCLUDED.previous_data,
+        next_data = EXCLUDED.next_data,
+        created_date = EXCLUDED.created_date
     `,
     [
       input.id,
@@ -360,6 +373,83 @@ export async function writeAuditLogToPostgres(input: {
       input.createdDate,
     ]
   );
+}
+
+export async function writeAttachmentVersionToPostgres(record: AttachmentVersionRecord) {
+  if (!isPostgresEnabledForRuntime() || !pool) return;
+  await pool.query(
+    `
+      INSERT INTO attachment_versions (
+        id, attachment_id, version_number, related_id, related_type, name, stored_name,
+        mime_type, size, relative_path, url, checksum, source, actor_id, actor_email,
+        actor_name, created_date
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::timestamptz)
+      ON CONFLICT (id) DO UPDATE SET
+        attachment_id = EXCLUDED.attachment_id,
+        version_number = EXCLUDED.version_number,
+        related_id = EXCLUDED.related_id,
+        related_type = EXCLUDED.related_type,
+        name = EXCLUDED.name,
+        stored_name = EXCLUDED.stored_name,
+        mime_type = EXCLUDED.mime_type,
+        size = EXCLUDED.size,
+        relative_path = EXCLUDED.relative_path,
+        url = EXCLUDED.url,
+        checksum = EXCLUDED.checksum,
+        source = EXCLUDED.source,
+        actor_id = EXCLUDED.actor_id,
+        actor_email = EXCLUDED.actor_email,
+        actor_name = EXCLUDED.actor_name,
+        created_date = EXCLUDED.created_date
+    `,
+    [
+      record.id,
+      record.attachment_id,
+      Number(record.version_number || 1),
+      record.related_id,
+      record.related_type,
+      record.name,
+      record.stored_name,
+      record.mime_type,
+      Number(record.size || 0),
+      record.relative_path,
+      record.url,
+      record.checksum || "",
+      record.source || "",
+      record.actor_id || "",
+      record.actor_email || "",
+      record.actor_name || "",
+      record.created_date,
+    ]
+  );
+}
+
+export async function deleteAttachmentVersionsFromPostgres(attachmentId: string) {
+  if (!isPostgresEnabledForRuntime() || !pool) return;
+  await pool.query("DELETE FROM attachment_versions WHERE attachment_id = $1", [attachmentId]);
+}
+
+export async function queryPostgresTableCounts() {
+  if (!pool || !isPostgresEnabledForRuntime()) {
+    return {
+      entity_rows: 0,
+      audit_rows: 0,
+      attachment_version_rows: 0,
+    };
+  }
+
+  const [entityRows, auditRows, attachmentVersionRows] = await Promise.all([
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM entity_records"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM audit_log"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM attachment_versions"),
+  ]);
+
+  return {
+    entity_rows: Number(entityRows.rows[0]?.count || 0),
+    audit_rows: Number(auditRows.rows[0]?.count || 0),
+    attachment_version_rows: Number(attachmentVersionRows.rows[0]?.count || 0),
+  };
 }
 
 export async function queryPostgresParitySnapshot(options: { limit?: number; entity?: string } = {}) {

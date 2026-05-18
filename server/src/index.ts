@@ -59,6 +59,7 @@ import {
   writeSessionCookie,
 } from "./auth";
 import {
+  AppModuleKey,
   getEntityModuleKey,
   getModuleConfig,
   requireModuleEnabled,
@@ -1802,7 +1803,8 @@ export async function createApp() {
       requireJsonMutation(req);
       const adminUser = requireAdminApiUser(req);
       const body = parseBodyWithSchema(req.body, moduleConfigSchema);
-      res.json(updateModuleConfig(body.modules, {
+      const nextModules = (body.modules || {}) as Partial<Record<AppModuleKey, boolean>>;
+      res.json(updateModuleConfig(nextModules, {
         actor: adminUser,
         requestSource: readRequestSource(req),
       }));

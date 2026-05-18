@@ -6,6 +6,7 @@ DATABASE_SHADOW_WRITE=true
 DATABASE_URL=postgresql://joinerflow:replace-with-password@postgres:5432/joinerflow
 PGHOST=postgres
 PGPORT=5432
+JOINERFLOW_POSTGRES_PORT=15432
 PGDATABASE=joinerflow
 PGUSER=joinerflow
 PGPASSWORD=replace-with-password
@@ -54,4 +55,3 @@ AI_KNOWLEDGE_QUEUE_MAX=15000
 AI_KNOWLEDGE_ALLOWED_ROOTS=/volume1/joinerflow/filesystem,/volume1/joinerflow/imports
 JOINERFLOW_ENABLE_OPEN_WEBUI=false
 VITE_TIMECLOCK_URL=https://timeclock.example.com
-

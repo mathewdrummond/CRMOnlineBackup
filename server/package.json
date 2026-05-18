@@ -11,7 +11,8 @@
     "test": "cd .. && vitest run server/src --project node",
     "db:migrate": "npm run build && node dist/dbMigrationCli.js migrate",
     "db:status": "npm run build && node dist/dbMigrationCli.js status",
-    "db:verify": "npm run build && node dist/dbMigrationCli.js verify"
+    "db:verify": "npm run build && node dist/dbMigrationCli.js verify",
+    "db:backfill-postgres": "npm run build && node dist/dbMigrationCli.js backfill-postgres"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
