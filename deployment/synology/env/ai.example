@@ -8,7 +8,7 @@ QDRANT_COLLECTION_ENTITIES=entity_embeddings
 QDRANT_COLLECTION_KNOWLEDGE=knowledge_chunks
 QDRANT_API_KEY=
 QDRANT_REQUEST_TIMEOUT_MS=3000
-AI_KNOWLEDGE_ALLOWED_ROOTS=/volume1/joinerflow/filesystem,/volume1/joinerflow/imports
+AI_KNOWLEDGE_ALLOWED_ROOTS=/volume1/joinerflow/filesystem,/volume1/joinerflow/imports,/volume1/archive
 
 AI_REQUEST_TIMEOUT_MS=45000
 AI_REQUEST_RETRIES=1
@@ -25,4 +25,3 @@ OLLAMA_MAX_LOADED_MODELS=1
 OLLAMA_KEEP_ALIVE=10m
 
 JOINERFLOW_ENABLE_OPEN_WEBUI=false
-

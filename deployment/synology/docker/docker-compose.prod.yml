@@ -32,6 +32,7 @@ services:
       - ${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/logs:${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/logs
       - ${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/imports:${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/imports
       - ${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/temp:${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/temp
+      - ${JOINERFLOW_ARCHIVE_ROOT:-/volume1/archive}:${JOINERFLOW_ARCHIVE_ROOT:-/volume1/archive}:ro
     networks:
       - joinerflow-internal
     ports:

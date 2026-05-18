@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Database, FolderOpen, FolderPlus, PauseCircle, PlayCircle, RefreshCw, Search } from "lucide-react";
+import { Database, FolderCog, FolderOpen, FolderPlus, PauseCircle, PlayCircle, RefreshCw, Search } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
