@@ -1,0 +1,25 @@
+[Unit]
+Description=JoinerFlow API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=joinerflow
+Group=joinerflow
+WorkingDirectory=/opt/joinerflow
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/joinerflow/server/.env.local
+ExecStart=/usr/bin/node /opt/joinerflow/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/joinerflow/server/data /opt/joinerflow/server/filesystem /opt/joinerflow/server/logs
+
+[Install]
+WantedBy=multi-user.target

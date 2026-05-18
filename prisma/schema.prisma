@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Customer {
+  id                Int       @id @default(autoincrement())
+  type              String
+  name              String?
+  businessName      String?
+  primaryContactName String?
+  phone             String?   @unique
+  email             String?   @unique
+  address           String?
+  tags              String?
+  referralSource    String?
+  notes             String?
+  enquiries         Enquiry[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+
+model Enquiry {
+  id              Int       @id @default(autoincrement())
+  enquiryRef      String    @unique
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  customerId      Int
+  projectName     String
+  projectType     String
+  projectLocation String?
+  estimatedValue  Float?
+  enquirySource   String?
+  stage           String @default("new")
+  assignedTo      String?
+  dateReceived    DateTime @default(now())
+  nextFollowUpDate DateTime?
+  lastContactDate DateTime?
+  quoteSentDate   DateTime?
+  outcome         String?
+  reasonLost      String?
+  notes           String?
+  activities      Activity[]
+  tasks           Task[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Activity {
+  id             Int       @id @default(autoincrement())
+  enquiry        Enquiry   @relation(fields: [enquiryId], references: [id])
+  enquiryId      Int
+  type           String
+  date           DateTime  @default(now())
+  summary        String
+  details        String?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  enquiry     Enquiry  @relation(fields: [enquiryId], references: [id])
+  enquiryId   Int
+  title       String
+  dueDate     DateTime
+  assignedTo  String?
+  status      String @default("open")
+  priority    String @default("medium")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

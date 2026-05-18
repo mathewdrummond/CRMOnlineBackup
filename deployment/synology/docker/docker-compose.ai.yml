@@ -1,0 +1,40 @@
+name: ${JOINERFLOW_PROJECT_NAME:-joinerflow}-ai
+
+services:
+  open-webui:
+    container_name: joinerflow-open-webui
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_AUTH: "False"
+      TZ: ${TZ:-Pacific/Auckland}
+    ports:
+      - "127.0.0.1:${JOINERFLOW_OPEN_WEBUI_PORT:-3001}:8080"
+    volumes:
+      - ${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/ai/open-webui:/app/backend/data
+    networks:
+      - joinerflow-ai
+      - joinerflow-internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          pids: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    profiles:
+      - ai-optional
+
+networks:
+  joinerflow-internal:
+    external: true

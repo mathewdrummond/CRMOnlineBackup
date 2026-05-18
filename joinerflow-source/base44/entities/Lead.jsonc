@@ -1,0 +1,108 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Lead Title"
+    },
+    "contact_id": {
+      "type": "string",
+      "title": "Contact ID"
+    },
+    "contact_name": {
+      "type": "string",
+      "title": "Contact Name"
+    },
+    "company_id": {
+      "type": "string",
+      "title": "Company ID"
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Company Name"
+    },
+    "stage": {
+      "type": "string",
+      "title": "Stage",
+      "enum": [
+        "new_enquiry",
+        "contacted",
+        "site_visit_booked",
+        "measuring",
+        "waiting_on_info",
+        "quote_in_progress",
+        "quote_sent",
+        "won",
+        "lost",
+        "on_hold"
+      ],
+      "default": "new_enquiry"
+    },
+    "value": {
+      "type": "number",
+      "title": "Estimated Value"
+    },
+    "probability": {
+      "type": "number",
+      "title": "Win Probability %"
+    },
+    "expected_close": {
+      "type": "string",
+      "title": "Expected Close Date",
+      "format": "date"
+    },
+    "source": {
+      "type": "string",
+      "title": "Lead Source",
+      "enum": [
+        "referral",
+        "website",
+        "phone",
+        "walk_in",
+        "trade_show",
+        "social_media",
+        "advertising",
+        "repeat_client",
+        "other"
+      ]
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Assigned Salesperson"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "site_address": {
+      "type": "string",
+      "title": "Site Address"
+    },
+    "priority": {
+      "type": "string",
+      "title": "Priority",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "tags": {
+      "type": "array",
+      "title": "Tags",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lost_reason": {
+      "type": "string",
+      "title": "Lost Reason"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

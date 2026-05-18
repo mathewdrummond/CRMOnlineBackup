@@ -1,0 +1,9 @@
+[Unit]
+Description=JoinerFlow backup snapshot
+
+[Service]
+Type=oneshot
+User=joinerflow
+Group=joinerflow
+WorkingDirectory=/opt/joinerflow
+ExecStart=/opt/joinerflow/deploy/linux/backup-joinerflow.sh /opt/joinerflow /var/backups/joinerflow

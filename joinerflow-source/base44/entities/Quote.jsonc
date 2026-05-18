@@ -1,0 +1,109 @@
+{
+  "name": "Quote",
+  "type": "object",
+  "properties": {
+    "quote_number": {
+      "type": "string",
+      "title": "Quote Number"
+    },
+    "title": {
+      "type": "string",
+      "title": "Quote Title"
+    },
+    "lead_id": {
+      "type": "string",
+      "title": "Lead ID"
+    },
+    "contact_id": {
+      "type": "string",
+      "title": "Contact ID"
+    },
+    "contact_name": {
+      "type": "string",
+      "title": "Contact Name"
+    },
+    "company_id": {
+      "type": "string",
+      "title": "Company ID"
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Company Name"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "declined",
+        "expired",
+        "revised"
+      ],
+      "default": "draft"
+    },
+    "revision": {
+      "type": "number",
+      "title": "Revision Number",
+      "default": 1
+    },
+    "subtotal": {
+      "type": "number",
+      "title": "Subtotal",
+      "default": 0
+    },
+    "gst": {
+      "type": "number",
+      "title": "GST",
+      "default": 0
+    },
+    "total": {
+      "type": "number",
+      "title": "Total",
+      "default": 0
+    },
+    "markup_percent": {
+      "type": "number",
+      "title": "Default Markup %",
+      "default": 30
+    },
+    "waste_percent": {
+      "type": "number",
+      "title": "Waste Allowance %",
+      "default": 10
+    },
+    "valid_until": {
+      "type": "string",
+      "title": "Valid Until",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    },
+    "exclusions": {
+      "type": "string",
+      "title": "Exclusions"
+    },
+    "terms": {
+      "type": "string",
+      "title": "Terms & Conditions"
+    },
+    "internal_notes": {
+      "type": "string",
+      "title": "Internal Notes"
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Prepared By"
+    },
+    "site_address": {
+      "type": "string",
+      "title": "Site Address"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

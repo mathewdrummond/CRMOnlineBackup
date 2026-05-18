@@ -1,0 +1,183 @@
+[
+  {
+    "key": "operations",
+    "label": "Operations Shell",
+    "description": "The application shell, authenticated home view, and shared navigation needed to start the CRM safely.",
+    "group": "core",
+    "requiredDependencies": [],
+    "optionalDependencies": [],
+    "entities": []
+  },
+  {
+    "key": "admin",
+    "label": "Admin",
+    "description": "Authentication, access control, system settings, and the controls needed to recover disabled modules.",
+    "group": "core",
+    "requiredDependencies": [],
+    "optionalDependencies": [],
+    "entities": ["AppModuleConfig", "AppUser"]
+  },
+  {
+    "key": "staff",
+    "label": "Staff",
+    "description": "Staff records, identities, and availability used by time tracking, scheduling, and admin workflows.",
+    "group": "core",
+    "requiredDependencies": [],
+    "optionalDependencies": [],
+    "entities": ["Staff"]
+  },
+  {
+    "key": "jobs",
+    "label": "Jobs",
+    "description": "Job records and core delivery data referenced by time tracking, planning, scheduling, and pricing.",
+    "group": "core",
+    "requiredDependencies": [],
+    "optionalDependencies": ["schedule", "pricing"],
+    "entities": ["Job", "Note", "Attachment"]
+  },
+  {
+    "key": "activities",
+    "label": "Activities",
+    "description": "Operational work items and workflow definitions that drive timeclock attribution, scheduling, and job execution.",
+    "group": "core",
+    "requiredDependencies": ["jobs", "staff"],
+    "optionalDependencies": ["schedule", "dashboard", "reports"],
+    "entities": ["JobOperation", "WorkflowRoleMapping", "JobTaskTemplate"]
+  },
+  {
+    "key": "timeclock",
+    "label": "Timeclock",
+    "description": "Clock-in, timers, timesheets, and labour capture.",
+    "group": "core",
+    "requiredDependencies": ["staff", "jobs", "activities"],
+    "optionalDependencies": ["myob_export", "export_history", "manual_entry"],
+    "entities": ["ClockIn", "TimeEntry"]
+  },
+  {
+    "key": "dashboard",
+    "label": "Dashboard",
+    "description": "Management dashboards, operational summaries, and high-level business visibility.",
+    "group": "optional",
+    "requiredDependencies": ["jobs", "activities", "timeclock"],
+    "optionalDependencies": ["leads", "quotes", "pricing", "schedule", "myob_export"],
+    "entities": []
+  },
+  {
+    "key": "leads",
+    "label": "Leads",
+    "description": "Enquiries, pipeline tracking, lead categories, and follow-up task management.",
+    "group": "optional",
+    "requiredDependencies": ["contacts"],
+    "optionalDependencies": ["quotes"],
+    "entities": ["Lead", "LeadCategory", "LeadTask"]
+  },
+  {
+    "key": "contacts",
+    "label": "Contacts & Companies",
+    "description": "Client contacts, client companies, interactions, follow-up tasks, and relationship history.",
+    "group": "optional",
+    "requiredDependencies": [],
+    "optionalDependencies": ["leads", "quotes"],
+    "entities": ["Contact", "ContactTask", "ContactInteraction", "Company"]
+  },
+  {
+    "key": "quotes",
+    "label": "Quotes",
+    "description": "Quote records, quote items, pricing, commercial approvals, and quote-to-job conversion.",
+    "group": "optional",
+    "requiredDependencies": ["contacts"],
+    "optionalDependencies": ["pricing"],
+    "entities": ["Quote", "QuoteItem", "SiteMeasure"]
+  },
+  {
+    "key": "pricing",
+    "label": "Millbrook Pricing Model",
+    "description": "Rule-based Mozaik import, labour assumptions, auto-inclusions, scenarios, and margin-protected quote pricing.",
+    "group": "optional",
+    "requiredDependencies": ["quotes"],
+    "optionalDependencies": ["suppliers", "reports"],
+    "entities": [
+      "PricingItem",
+      "PricingItemLearningAudit",
+      "PricingItemActionAudit",
+      "QuoteLineItemUpdateAudit",
+      "QuoteMarginAdjustmentAudit",
+      "PricingItemAutoInclusion",
+      "TriggeredAutoInclusionRule",
+      "AutoInclusionAuditLog",
+      "TriggeredAutoInclusionAudit",
+      "GlobalAutoInclusion",
+      "GlobalAutoInclusionAudit",
+      "PricingRule",
+      "QuoteImport",
+      "PricingQuoteItem",
+      "QuoteAutoInclusion",
+      "QuoteCalculation",
+      "QuoteScenario",
+      "QuoteOverride",
+      "LabourProfile",
+      "HistoricalJob",
+      "SupplierPriceList",
+      "PriceListImport",
+      "PriceListImportRow",
+      "SupplierColumnMapping",
+      "SupplierImportProfile",
+      "PricingItemPriceHistory",
+      "ImportRollbackLog"
+    ]
+  },
+  {
+    "key": "schedule",
+    "label": "Install Planner",
+    "description": "Installation-only planning calendar, drag-and-drop install dates, and site workload visibility.",
+    "group": "optional",
+    "requiredDependencies": ["jobs", "activities"],
+    "optionalDependencies": [],
+    "entities": ["ScheduleLane", "Crew", "InstallEstimatorSetting"]
+  },
+  {
+    "key": "suppliers",
+    "label": "Suppliers",
+    "description": "Supplier companies, legacy supplier records, and supplier-linked lookups for pricing.",
+    "group": "optional",
+    "requiredDependencies": [],
+    "optionalDependencies": ["pricing"],
+    "entities": ["Supplier"]
+  },
+  {
+    "key": "myob_export",
+    "label": "MYOB Export",
+    "description": "MYOB-ready export workflows built on captured time data.",
+    "group": "optional",
+    "requiredDependencies": ["timeclock"],
+    "optionalDependencies": ["export_history", "manual_entry"],
+    "entities": []
+  },
+  {
+    "key": "export_history",
+    "label": "Export History",
+    "description": "Export audit trails and downloadable batch history.",
+    "group": "optional",
+    "requiredDependencies": ["myob_export"],
+    "optionalDependencies": [],
+    "entities": ["ExportHistory"]
+  },
+  {
+    "key": "manual_entry",
+    "label": "Manual Entry",
+    "description": "Admin-only timesheet corrections and manually entered time records.",
+    "group": "optional",
+    "requiredDependencies": ["timeclock"],
+    "optionalDependencies": [],
+    "entities": []
+  },
+  {
+    "key": "reports",
+    "label": "Reports",
+    "description": "Cross-functional reporting, charts, and performance analysis.",
+    "group": "optional",
+    "requiredDependencies": ["jobs", "activities", "timeclock"],
+    "optionalDependencies": ["leads", "quotes", "pricing", "schedule"],
+    "entities": ["ReportView"]
+  }
+]

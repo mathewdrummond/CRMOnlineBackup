@@ -1,0 +1,155 @@
+{
+  "name": "Job",
+  "type": "object",
+  "properties": {
+    "job_number": {
+      "type": "string",
+      "title": "Job Number"
+    },
+    "title": {
+      "type": "string",
+      "title": "Job Title"
+    },
+    "job_name": {
+      "type": "string",
+      "title": "Job Name (MYOB)"
+    },
+    "client": {
+      "type": "string",
+      "title": "Client (MYOB)"
+    },
+    "budget_hours": {
+      "type": "number",
+      "title": "Budget Hours"
+    },
+    "quote_id": {
+      "type": "string",
+      "title": "Quote ID"
+    },
+    "lead_id": {
+      "type": "string",
+      "title": "Lead ID"
+    },
+    "contact_id": {
+      "type": "string",
+      "title": "Contact ID"
+    },
+    "contact_name": {
+      "type": "string",
+      "title": "Client Name"
+    },
+    "company_id": {
+      "type": "string",
+      "title": "Company ID"
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Company Name"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "planning",
+        "approved",
+        "production",
+        "ready_to_install",
+        "installed",
+        "complete",
+        "on_hold",
+        "cancelled",
+        "active",
+        "completed"
+      ],
+      "default": "planning"
+    },
+    "quoted_value": {
+      "type": "number",
+      "title": "Quoted Value",
+      "default": 0
+    },
+    "estimated_cost": {
+      "type": "number",
+      "title": "Estimated Cost",
+      "default": 0
+    },
+    "actual_cost": {
+      "type": "number",
+      "title": "Actual Cost",
+      "default": 0
+    },
+    "labour_cost": {
+      "type": "number",
+      "title": "Labour Cost",
+      "default": 0
+    },
+    "material_cost": {
+      "type": "number",
+      "title": "Material Cost",
+      "default": 0
+    },
+    "site_address": {
+      "type": "string",
+      "title": "Site Address"
+    },
+    "salesperson": {
+      "type": "string",
+      "title": "Salesperson"
+    },
+    "project_manager": {
+      "type": "string",
+      "title": "Project Manager"
+    },
+    "designer": {
+      "type": "string",
+      "title": "Designer"
+    },
+    "start_date": {
+      "type": "string",
+      "title": "Start Date",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "title": "Due Date",
+      "format": "date"
+    },
+    "install_date": {
+      "type": "string",
+      "title": "Install Date",
+      "format": "date"
+    },
+    "completion_date": {
+      "type": "string",
+      "title": "Completion Date",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    },
+    "priority": {
+      "type": "string",
+      "title": "Priority",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "tags": {
+      "type": "array",
+      "title": "Tags",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "title",
+    "job_number",
+    "job_name"
+  ]
+}

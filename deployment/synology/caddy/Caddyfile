@@ -1,0 +1,71 @@
+http://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local} {
+  handle /caddy-health {
+    respond "ok" 200
+  }
+
+  handle {
+    redir https://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local}{uri}
+  }
+}
+
+https://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local} {
+  tls internal
+  encode gzip zstd
+  request_body {
+    max_size 100MB
+  }
+
+  @api path /api/* /health /filesystem/*
+  handle @api {
+    reverse_proxy joinerflow-server:4000 {
+      health_uri /health
+      health_headers {
+        Host {$JOINERFLOW_PUBLIC_HOST:joinerflow.local}
+      }
+      health_interval 30s
+      health_timeout 5s
+      header_up X-Forwarded-Proto {scheme}
+      header_up X-Forwarded-Host {host}
+    }
+  }
+
+  handle {
+    reverse_proxy joinerflow-client:8080
+  }
+
+  header {
+    X-Frame-Options SAMEORIGIN
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+  }
+}
+
+http://timeclock.millbrookfurniture.co.nz {
+  handle /caddy-health {
+    respond "ok" 200
+  }
+
+  handle {
+    redir https://timeclock.millbrookfurniture.co.nz{uri}
+  }
+}
+
+https://timeclock.millbrookfurniture.co.nz {
+  tls internal
+  encode gzip zstd
+
+  @api path /api/*
+  handle @api {
+    reverse_proxy joinerflow-server:4000
+  }
+
+  handle {
+    reverse_proxy joinerflow-clock-client:8081
+  }
+
+  header {
+    X-Frame-Options SAMEORIGIN
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+  }
+}

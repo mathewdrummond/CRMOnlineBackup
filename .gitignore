@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build output
+dist/
+*/dist/
+coverage/
+test-results/
+playwright-report/
+
+# Runtime state and generated files
+.joinerflow-runtime/
+.vite/
+.vite-temp/
+*.log
+*.jsonl
+logs/
+*/logs/
+
+# Local OS/editor artifacts
+.DS_Store
+Thumbs.db
+
+# SMB/NAS recycle bins and temporary packaging output
+\#recycle/
+@eaDir/
+deployment/synology/backups/*
+!deployment/synology/backups/.gitkeep
+deployment/synology/diagnostics/*
+!deployment/synology/diagnostics/.gitkeep
+deployment/synology/**/joinerflow-ds225-*/
+
+# Live environment files and secrets
+.env
+.env.*
+server/.env
+server/.env.local
+deployment/synology/env/.env.*
+!*.env.example
+!server/.env.example
+!client/.env.example
+!clock-client/.env.example
+!deployment/synology/env/*.example
+
+# Databases and application data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+server/data/
+server/backups/
+server/filesystem/
+filesystem/
+
+# Uploaded/generated documents and binary exports
+*.pdf
+*.zip

@@ -1,0 +1,89 @@
+{
+  "name": "JobOperation",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job ID"
+    },
+    "job_number": {
+      "type": "string",
+      "title": "Job Number"
+    },
+    "job_title": {
+      "type": "string",
+      "title": "Job Title"
+    },
+    "operation": {
+      "type": "string",
+      "title": "Operation",
+      "enum": [
+        "design",
+        "ordering",
+        "cnc",
+        "machining",
+        "edging",
+        "assembly",
+        "finishing",
+        "delivery",
+        "install",
+        "other"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pending",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "on_hold",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Assigned To"
+    },
+    "start_date": {
+      "type": "string",
+      "title": "Start Date",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "title": "End Date",
+      "format": "date"
+    },
+    "estimated_hours": {
+      "type": "number",
+      "title": "Estimated Hours",
+      "default": 0
+    },
+    "actual_hours": {
+      "type": "number",
+      "title": "Actual Hours",
+      "default": 0
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    },
+    "sort_order": {
+      "type": "number",
+      "title": "Sort Order",
+      "default": 0
+    },
+    "is_locked": {
+      "type": "boolean",
+      "title": "Locked",
+      "default": false
+    }
+  },
+  "required": [
+    "job_id",
+    "operation"
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Supplier Name"
+    },
+    "contact_name": {
+      "type": "string",
+      "title": "Contact Person"
+    },
+    "email": {
+      "type": "string",
+      "title": "Email"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Phone"
+    },
+    "address": {
+      "type": "string",
+      "title": "Address"
+    },
+    "city": {
+      "type": "string",
+      "title": "City"
+    },
+    "state": {
+      "type": "string",
+      "title": "State"
+    },
+    "postcode": {
+      "type": "string",
+      "title": "Postcode"
+    },
+    "account_number": {
+      "type": "string",
+      "title": "Account Number"
+    },
+    "payment_terms": {
+      "type": "string",
+      "title": "Payment Terms",
+      "enum": [
+        "COD",
+        "7_days",
+        "14_days",
+        "30_days",
+        "60_days"
+      ],
+      "default": "30_days"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "enum": [
+        "board_supplier",
+        "hardware",
+        "stone",
+        "glass",
+        "paint_finish",
+        "edging",
+        "general",
+        "subcontractor",
+        "other"
+      ],
+      "default": "general"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
