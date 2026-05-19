@@ -210,6 +210,6 @@ runtime, backup, and diagnostic scripts live under `deployment/synology/`.
 - Go-live checklist: `deploy/GO_LIVE_CHECKLIST.md`
 - Firewall / port exposure: `deploy/FIREWALL_PORTS.md`
 
-## Reference Source
+## Base44 Contract Fixtures
 
-The original downloaded source is kept in `joinerflow-source/` for comparison and migration reference.
+Base44 entity definitions retained for contract tests live under `server/src/__fixtures__/base44/entities`.

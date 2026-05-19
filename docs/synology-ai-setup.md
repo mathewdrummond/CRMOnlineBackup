@@ -2,7 +2,7 @@
 
 ## Objective
 
-Configure local AI inference for JoinerFlow on Synology DS225+ with CPU-friendly settings and deterministic safety controls.
+Configure local AI inference for JoinerFlow on Synology with CPU-friendly settings and deterministic safety controls.
 
 ## AI Runtime Components
 
@@ -13,9 +13,11 @@ Configure local AI inference for JoinerFlow on Synology DS225+ with CPU-friendly
 
 ## Required Models
 
-- `qwen2.5:3b-instruct-q4_K_M`
-- `gemma3:1b`
-- `nomic-embed-text`
+- General AI assistant: `gemma3:4b`
+- Fast utility tasks: `phi4-mini:latest`
+- Document embeddings: `nomic-embed-text:latest`
+
+The application currently supports three model roles: primary, fast, and embedding. It does not have a separate coding/refactoring model role; do not install `qwen2.5-coder:7b` unless application support for a fourth role is added.
 
 ## Configure AI Environment
 
@@ -24,9 +26,9 @@ Edit `deployment/synology/env/.env.ai`:
 ```env
 AI_ENABLED=true
 OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_PRIMARY_MODEL=qwen2.5:3b-instruct-q4_K_M
-OLLAMA_FAST_MODEL=gemma3:1b
-OLLAMA_EMBED_MODEL=nomic-embed-text
+OLLAMA_PRIMARY_MODEL=gemma3:4b
+OLLAMA_FAST_MODEL=phi4-mini:latest
+OLLAMA_EMBED_MODEL=nomic-embed-text:latest
 QDRANT_URL=http://qdrant:6333
 QDRANT_COLLECTION_ENTITIES=entity_embeddings
 QDRANT_COLLECTION_KNOWLEDGE=knowledge_chunks
@@ -44,13 +46,15 @@ OLLAMA_MAX_LOADED_MODELS=1
 OLLAMA_KEEP_ALIVE=10m
 ```
 
-These limits keep AI throughput stable on low-memory NAS hardware.
+These limits keep CPU inference predictable. Production currently caps the Ollama container at 8192 MB, which is enough for the listed model set on the upgraded NAS.
+
+AI knowledge indexing can browse the configured upload/import roots and valid Synology shared folders discovered under `/volume1/*`. The server canonicalizes paths, blocks traversal and symlink escapes, hides system/hidden mounts, and only exposes directories readable by the container.
 
 ## Install and Validate Models
 
 ```bash
-./deployment/synology/scripts/install-ollama-models.sh
-./deployment/synology/scripts/check-ai.sh
+sudo ./deployment/synology/scripts/install-ollama-models.sh
+sudo ./deployment/synology/scripts/check-ai.sh
 ```
 
 Validation includes:
@@ -60,6 +64,8 @@ Validation includes:
 - Text generation request.
 - Embedding request.
 - Qdrant health endpoint response (`/healthz`).
+
+`/api/ai/health` is an authenticated admin API. The script also checks unauthenticated `/api/health`, direct Ollama, and direct Qdrant endpoints.
 
 ## Operational Safety Controls
 
@@ -74,8 +80,8 @@ Validation includes:
 Update model tags in `env/.env.ai`, then run:
 
 ```bash
-./deployment/synology/scripts/install-ollama-models.sh
-./deployment/synology/restart-joinerflow-synology.sh
+sudo ./deployment/synology/scripts/install-ollama-models.sh
+sudo ./deployment/synology/restart-joinerflow-synology.sh
 ```
 
 If storage pressure is high, remove old model blobs from:

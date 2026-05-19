@@ -2,23 +2,29 @@ import fs from "node:fs";
 import path from "node:path";
 import { RouteRequestError } from "../../routeError";
 import { LocalUser } from "../../types";
-
-const DEFAULT_ALLOWED_NAS_ROOTS = [
-  process.env.FILESYSTEM_ROOT || "",
-  "/volume1/joinerflow",
-  "/volume1/shared",
-  "/volume1/projects",
-].map((value) => String(value || "").trim()).filter(Boolean);
+import {
+  isApprovedSynologySharedFolder,
+  isSynologyVolumeRoot,
+  listSynologySharedFolderRoots,
+} from "./synologySharedFolders";
 
 export function readConfiguredKnowledgeAllowedRoots() {
   const fromEnv = String(process.env.AI_KNOWLEDGE_ALLOWED_ROOTS || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-  const roots = fromEnv.length > 0 ? fromEnv : DEFAULT_ALLOWED_NAS_ROOTS;
-  return roots
-    .map((value) => safeRealpath(value))
-    .filter(Boolean);
+  const defaults = [
+    process.env.FILESYSTEM_ROOT || "",
+    path.join(process.env.JOINERFLOW_INSTALL_ROOT || "/volume1/joinerflow", "imports"),
+  ].filter(Boolean);
+  const roots = [
+    ...fromEnv,
+    ...defaults,
+    ...listSynologySharedFolderRoots(),
+  ];
+  return dedupe(roots
+    .flatMap((value) => normalizeAllowedRoot(value))
+    .filter(Boolean));
 }
 
 export function ensureKnowledgePathAllowed(candidatePath: string) {
@@ -127,6 +133,33 @@ function safeRealpath(targetPath: string) {
   }
 }
 
+function normalizeAllowedRoot(targetPath: string) {
+  if (isSynologyVolumeRoot(targetPath)) {
+    return listSynologySharedFolderRoots();
+  }
+
+  const real = safeRealpath(targetPath);
+  if (!real) return [];
+  if (isSystemRoot(real)) return [];
+  if (isUnderSynologyVolume(real) && !isApprovedSynologyPath(real)) return [];
+  return [real];
+}
+
+function isSystemRoot(targetPath: string) {
+  const normalized = path.resolve(targetPath);
+  return ["/", "/etc", "/proc", "/sys", "/dev", "/run", "/var", "/usr", "/bin", "/sbin", "/lib", "/opt"]
+    .some((blocked) => normalized === blocked || normalized.startsWith(`${blocked}${path.sep}`));
+}
+
+function isUnderSynologyVolume(targetPath: string) {
+  return /^\/volume\d+(?:\/|$)/.test(path.resolve(targetPath));
+}
+
+function isApprovedSynologyPath(targetPath: string) {
+  return isApprovedSynologySharedFolder(targetPath)
+    || listSynologySharedFolderRoots().some((root) => isWithinPath(targetPath, root));
+}
+
 function isWithinPath(candidate: string, root: string) {
   const normalizedRoot = path.resolve(root);
   const normalizedCandidate = path.resolve(candidate);
@@ -139,4 +172,8 @@ function wildcardMatch(value: string, pattern: string) {
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*/g, ".*");
   return new RegExp(`^${escaped}$`, "i").test(value);
+}
+
+function dedupe(values: string[]) {
+  return Array.from(new Set(values.map((value) => path.resolve(value)).filter(Boolean)));
 }

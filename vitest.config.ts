@@ -6,7 +6,6 @@ const nodeTestFiles = ["server/src/**/*.test.{js,ts}", "scripts/**/*.test.mjs"];
 const testExclude = [
   "**/node_modules/**",
   "**/dist/**",
-  "joinerflow-source/**",
   "clock-client/dist/**",
 ];
 const alias = {
@@ -54,7 +53,6 @@ export default defineConfig({
         "**/node_modules/**",
         "**/dist/**",
         "**/coverage/**",
-        "joinerflow-source/**",
         "client/dist/**",
         "clock-client/dist/**",
         "server/dist/**",
@@ -62,10 +60,8 @@ export default defineConfig({
         "playwright.config.ts",
         "client/postcss.config.js",
         "clock-client/postcss.config.js",
-        "joinerflow-source/postcss.config.js",
         "client/tailwind.config.js",
         "clock-client/tailwind.config.cjs",
-        "joinerflow-source/tailwind.config.js",
         "prisma/**",
       ],
     },

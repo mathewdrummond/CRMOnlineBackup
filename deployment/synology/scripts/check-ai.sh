@@ -38,10 +38,10 @@ curl -fsS "http://127.0.0.1:${JOINERFLOW_QDRANT_PORT:-6333}/healthz" >/dev/null
 
 curl -fsS "http://127.0.0.1:${JOINERFLOW_OLLAMA_PORT:-11434}/api/generate" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${OLLAMA_FAST_MODEL:-gemma3:1b}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/tmp/joinerflow-ai-generate.json
+  -d "{\"model\":\"${OLLAMA_FAST_MODEL:-phi4-mini:latest}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/tmp/joinerflow-ai-generate.json
 curl -fsS "http://127.0.0.1:${JOINERFLOW_OLLAMA_PORT:-11434}/api/embeddings" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${OLLAMA_EMBED_MODEL:-nomic-embed-text}\",\"prompt\":\"synology embedding check\"}" >/tmp/joinerflow-ai-embed.json
+  -d "{\"model\":\"${OLLAMA_EMBED_MODEL:-nomic-embed-text:latest}\",\"prompt\":\"synology embedding check\"}" >/tmp/joinerflow-ai-embed.json
 
 if is_true "${JOINERFLOW_ENABLE_OPEN_WEBUI:-false}"; then
   curl -fsS "http://127.0.0.1:${JOINERFLOW_OPEN_WEBUI_PORT:-3001}/health" >/dev/null

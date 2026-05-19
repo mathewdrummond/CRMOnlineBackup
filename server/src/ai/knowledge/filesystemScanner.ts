@@ -46,23 +46,23 @@ export async function scanKnowledgeSource(source: KnowledgeSourceRecord, options
       dir = await fs.promises.opendir(currentDir);
       for await (const entry of dir) {
         const absolutePath = path.join(currentDir, entry.name);
-        const safeAbsolutePath = ensureKnowledgeChildPath(canonicalRoot, absolutePath);
-        const relativePath = normalizeRelativePath(canonicalRoot, safeAbsolutePath);
-
-        if (!relativePath || shouldExcludePath(relativePath, excludedPatterns)) {
-          skippedEntries += 1;
-          continue;
-        }
-
         let stat: fs.Stats;
         try {
-          stat = await fs.promises.lstat(safeAbsolutePath);
+          stat = await fs.promises.lstat(absolutePath);
         } catch {
           skippedEntries += 1;
           continue;
         }
 
         if (stat.isSymbolicLink()) {
+          skippedEntries += 1;
+          continue;
+        }
+
+        const safeAbsolutePath = ensureKnowledgeChildPath(canonicalRoot, absolutePath);
+        const relativePath = normalizeRelativePath(canonicalRoot, safeAbsolutePath);
+
+        if (!relativePath || shouldExcludePath(relativePath, excludedPatterns)) {
           skippedEntries += 1;
           continue;
         }

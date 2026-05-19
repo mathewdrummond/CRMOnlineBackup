@@ -1,10 +1,10 @@
 # Data Protection Strategy
 
-This application is a local-first CRM backed by SQLite. RAID or mirrored disks can help with a failed drive, but they do not protect against accidental deletion, application bugs, corrupted writes, ransomware, or bad imports. The recovery strategy is therefore based on verified recovery points, transactional writes, integrity checks, and safe restore promotion.
+This application is a local-first CRM that currently keeps SQLite as the primary business store, with PostgreSQL infrastructure available for staged shadow writes and future primary operation. RAID or mirrored disks can help with a failed drive, but they do not protect against accidental deletion, application bugs, corrupted writes, ransomware, or bad imports. The recovery strategy is therefore based on verified recovery points, transactional writes, integrity checks, and safe restore promotion.
 
 ## Current Data Layer
 
-- Database technology: SQLite via `better-sqlite3`.
+- Database technology: SQLite via `better-sqlite3` for the primary runtime, with PostgreSQL support gated by `DATABASE_DRIVER` and `DATABASE_SHADOW_WRITE`.
 - Primary database path: `SQLITE_PATH`, defaulting to `server/data/joinerflow.sqlite`.
 - Local file storage: `FILESYSTEM_ROOT`, defaulting to `server/filesystem`.
 - Logs: `LOG_DIRECTORY`, defaulting to `server/logs`.
@@ -64,6 +64,8 @@ Environment variables:
 Recommended production layout:
 
 - Put `SQLITE_PATH` on the application data disk.
+- Keep the PostgreSQL data volume under the deployment's configured Docker data path when PostgreSQL shadow or primary mode is enabled.
+- Keep Qdrant vector data and Ollama models in the Synology runtime data paths when local AI is enabled.
 - Put `BACKUP_ROOT` on a different physical disk, NAS share, or synced backup location.
 - Copy at least one backup set off the machine each day.
 - Keep at least one known-good pre-go-live snapshot permanently.

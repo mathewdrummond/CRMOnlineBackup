@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-export const DEFAULT_OLLAMA_PRIMARY_MODEL = "qwen2.5:3b-instruct-q4_K_M";
-export const DEFAULT_OLLAMA_FAST_MODEL = "gemma3:1b";
-export const DEFAULT_OLLAMA_EMBED_MODEL = "nomic-embed-text";
+export const DEFAULT_OLLAMA_PRIMARY_MODEL = "gemma3:4b";
+export const DEFAULT_OLLAMA_FAST_MODEL = "phi4-mini:latest";
+export const DEFAULT_OLLAMA_EMBED_MODEL = "nomic-embed-text:latest";
 
 export type AiConfig = {
   enabled: boolean;

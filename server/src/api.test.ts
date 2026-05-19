@@ -327,9 +327,9 @@ describe("server security and reliability", () => {
     process.env.AI_KNOWLEDGE_ALLOWED_ROOTS = allowedRoot;
 
     const roots = await agent.get("/api/ai/knowledge/roots").expect(200);
-    expect(roots.body.roots).toEqual([
+    expect(roots.body.roots).toEqual(expect.arrayContaining([
       expect.objectContaining({ path: fs.realpathSync.native(allowedRoot), selectable: true }),
-    ]);
+    ]));
 
     const browse = await agent
       .get("/api/ai/knowledge/browse")

@@ -22,7 +22,7 @@ resolution, and persisted-state validation live in `server/src/appModules.ts`.
 
 Generic entity mutations use optimistic concurrency.
 
-- Entity definitions documented in `joinerflow-source/base44/entities/` must be registered in the
+- Entity definitions documented in `server/src/__fixtures__/base44/entities/` must be registered in the
   local server entity registry. `server/src/entityContracts.test.ts` prevents documented entities
   from silently becoming runtime 404s.
 - Updates must include a positive integer `row_version` in the JSON body.

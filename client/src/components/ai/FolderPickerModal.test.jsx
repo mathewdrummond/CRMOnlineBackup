@@ -8,7 +8,10 @@ vi.mock("@/api/localApiClient", () => ({
   crmApi: {
     ai: {
       knowledgeRoots: vi.fn(async () => ({
-        roots: [{ label: "/joinerflow", path: "/volume1/joinerflow", selectable: true }],
+        roots: [
+          { label: "/joinerflow", path: "/volume1/joinerflow", selectable: true },
+          { label: "/clients", path: "/volume1/clients", selectable: true },
+        ],
       })),
       browseKnowledgeFolders: vi.fn(async ({ path, query }) => ({
         path,
@@ -41,6 +44,8 @@ describe("FolderPickerModal", () => {
     );
 
     const tree = await screen.findByRole("tree", { name: /nas folder browser/i });
+    expect(within(tree).getByRole("treeitem", { name: /clients/i })).toBeInTheDocument();
+    await user.click(within(tree).getByRole("button", { name: /open \/joinerflow/i }));
     const jobs = await within(tree).findByRole("treeitem", { name: /jobs/i });
     jobs.focus();
     await user.keyboard("{Enter}");
@@ -62,6 +67,7 @@ describe("FolderPickerModal", () => {
       />
     );
 
+    await user.click(await screen.findByRole("button", { name: /open \/joinerflow/i }));
     await user.type(await screen.findByLabelText(/filter folders/i), "archive");
     await waitFor(() => expect(screen.getByText("Archives")).toBeInTheDocument());
     await user.click(screen.getByText("Archives"));

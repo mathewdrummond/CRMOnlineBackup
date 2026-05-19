@@ -12,7 +12,7 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
 - `depcheck` in `server`: no issues.
 - `depcheck` in `client`: reported several unused UI/Radix/form/chart dependencies; these are mostly tied to shadcn-style component inventory and should be pruned only after UI usage review.
 - `depcheck` in `clock-client`: no issues.
-- `knip --no-progress`: reported generated output (`coverage`, `dist`), the archived `joinerflow-source`, unused shadcn components, and many exported helpers. Treat as triage input, not direct deletion authority.
+- `knip --no-progress`: reported generated output (`coverage`, `dist`), unused shadcn components, and many exported helpers. Treat as triage input, not direct deletion authority.
 - `madge --circular --extensions ts,tsx,js,jsx server/src client/src clock-client/src`: initially found one circular dependency, now fixed.
 - `npm run build --workspace=server`: passed after cycle fix.
 - `npm run lint --workspace=client`: passed after fixing one redundant boolean cast.
@@ -29,7 +29,7 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
 ### Architecture Map
 
 - Root workspace: `client`, `server`, `clock-client`.
-- Non-workspace archive: `joinerflow-source`, described by its package metadata as a sanitized archived reference snapshot. It is not an active workspace and should remain read-only unless explicitly retired.
+- Base44 contract fixtures now live under `server/src/__fixtures__/base44/entities`; the old archived duplicate app tree has been retired.
 - Server: Express API, SQLite-backed entity store, audit log, attachment versioning, workflow/pricing/time/install modules, AI subsystem under `server/src/ai`.
 - Client: Vite React CRM, local API wrapper in `client/src/api/localApiClient.js`, feature pages under `client/src/pages`, reusable UI under `client/src/components`.
 - Clock client: separate Vite React timeclock surface with minimal dependencies.
@@ -85,10 +85,11 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
   - `joinerflow-server`
   - `joinerflow-client`
   - `joinerflow-clock-client`
+  - `postgres`
+  - `qdrant`
   - `ollama`
   - `caddy`
 - Optional AI compose services:
-  - `qdrant`
   - `open-webui`
 - Production hardening already present:
   - restart policies
@@ -115,9 +116,10 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
 - Filesystem uploads: `FILESYSTEM_ROOT`, production example `/volume1/joinerflow/filesystem`.
 - Backups: `BACKUP_ROOT`, production example `/volume1/joinerflow/backups`.
 - Logs: `LOG_DIRECTORY`, production example `/volume1/joinerflow/logs`.
-- AI knowledge roots: `AI_KNOWLEDGE_ALLOWED_ROOTS`, production example `/volume1/joinerflow/filesystem,/volume1/joinerflow/imports`.
+- AI knowledge roots: `AI_KNOWLEDGE_ALLOWED_ROOTS` plus dynamically discovered valid Synology shared folders under `/volume1/*`; production keeps app-owned roots such as `/volume1/joinerflow/filesystem,/volume1/joinerflow/imports`.
 - Ollama models: `/volume1/joinerflow/ai/models`.
 - Qdrant: `/volume1/vector-data/qdrant`.
+- PostgreSQL data: `/volume1/docker/postgres`.
 
 ### Auth And Security Inventory
 
@@ -155,7 +157,7 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
 
 ### Cleanup Candidates Requiring Separate Decisions
 
-- `joinerflow-source/`: archived reference snapshot. It is not an active workspace but tests still reference `joinerflow-source/base44/entities`; do not remove until entity contract tests are migrated to canonical fixtures.
+- Base44 entity JSONC definitions are retained only as server test fixtures under `server/src/__fixtures__/base44/entities`.
 - `coverage/`, `test-results/`, `.joinerflow-runtime/`, `.DS_Store`, `server/logs/`: generated artifacts. Safe to clean from future commits; currently some are tracked/modified and should be removed from version control in a dedicated generated-artifact cleanup.
 - `client/src/components/ui/*`: many shadcn-style components are unused today. Because this is a design-system inventory, prune in small batches only when no feature roadmap depends on them.
 - Client dependencies flagged by depcheck are mostly tied to unused component inventory. Remove only with the corresponding components.

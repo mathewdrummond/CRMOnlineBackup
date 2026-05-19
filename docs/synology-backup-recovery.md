@@ -4,13 +4,15 @@
 
 `deployment/synology/scripts/backup-joinerflow.sh` captures:
 
-- SQLite snapshot (`database.sqlite`)
+- SQLite snapshot (`database.sqlite`) when `DATABASE_DRIVER=sqlite`, or PostgreSQL logical dump (`database.postgres.sql`) when `DATABASE_DRIVER=postgres`
 - attachment filesystem
 - embeddings data
-- AI model/runtime data directory
+- Qdrant vector data when AI is enabled
+- AI model/runtime data directory when AI is enabled
+- imports directory
 - Docker deployment config
 - diagnostics directory
-- manifest metadata and SQLite integrity output
+- manifest metadata and SQLite integrity output when applicable
 
 Backup destination:
 
@@ -21,8 +23,8 @@ Backup destination:
 ## Create a Backup
 
 ```bash
-./deployment/synology/scripts/backup-joinerflow.sh
-./deployment/synology/scripts/check-backups.sh
+sudo ./deployment/synology/scripts/backup-joinerflow.sh
+sudo ./deployment/synology/scripts/check-backups.sh
 ```
 
 `check-backups.sh` validates required snapshot contents and SQLite integrity.
@@ -33,7 +35,7 @@ Backup destination:
 2. Run restore script:
 
 ```bash
-./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
+sudo ./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
 ```
 
 Restore behavior:

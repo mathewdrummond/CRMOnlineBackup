@@ -1,6 +1,6 @@
 import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,13 +42,14 @@ export default function FolderPickerModal({
     if (!open) return;
     setSelectedPath(value || "");
     setError("");
+    cacheRef.current.clear();
     const controller = new AbortController();
     setLoading(true);
     crmApi.ai.knowledgeRoots({ signal: controller.signal })
       .then((response) => {
         const nextRoots = Array.isArray(response?.roots) ? response.roots : [];
         setRoots(nextRoots);
-        const initial = value || nextRoots[0]?.path || "";
+        const initial = value || "";
         setCurrentPath(initial);
       })
       .catch((nextError) => {
@@ -118,6 +119,24 @@ export default function FolderPickerModal({
         </DialogHeader>
 
         <div className="grid gap-3">
+          <div className="flex flex-wrap gap-2" aria-label="Available shared folders">
+            {roots.map((root) => {
+              const active = currentPath === root.path || currentPath.startsWith(`${root.path}/`);
+              return (
+                <Button
+                  key={root.path}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  className="max-w-full"
+                  onClick={() => handleOpenFolder(root.path)}
+                >
+                  <HardDrive className="mr-2 h-4 w-4" />
+                  <span className="truncate">{root.label}</span>
+                </Button>
+              );
+            })}
+          </div>
           <FolderBreadcrumbs breadcrumbs={directory?.breadcrumbs || []} onNavigate={handleOpenFolder} />
           <FolderSearchInput value={query} onChange={setQuery} disabled={!currentPath} />
           <FolderTreeView

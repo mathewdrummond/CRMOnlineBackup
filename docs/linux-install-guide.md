@@ -40,8 +40,7 @@ This guide is for running JoinerFlow on a small workshop server or Linux PC. It 
 
    - `NODE_ENV=production`
    - `HOST=0.0.0.0`
-   - `PORT=5123`
-   - `APP_PUBLIC_URL=https://your-joinerflow-address`
+   - `PORT=4000`
    - `PUBLIC_API_ORIGIN=https://your-joinerflow-address`
    - `AUTH_SESSION_SECRET` with a long random value
    - Google OAuth client settings, if Google login is used
@@ -93,13 +92,13 @@ Use HTTPS for production, even on a private network. Caddy is the simplest optio
 JoinerFlow backend:
 
 ```text
-http://127.0.0.1:5123
+http://127.0.0.1:4000
 ```
 
 JoinerFlow frontend, if served separately:
 
 ```text
-http://127.0.0.1:5124
+http://127.0.0.1:5173
 ```
 
 Staff Time Clock / Handover Pack:

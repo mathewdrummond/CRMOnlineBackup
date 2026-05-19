@@ -1,2 +1,2 @@
-0 2 * * * /volume1/joinerflow/app/Millbrook-CRM/deployment/synology/scripts/backup-joinerflow.sh >> /volume1/joinerflow/logs/backup-cron.log 2>&1
-10 2 * * * /volume1/joinerflow/app/Millbrook-CRM/deployment/synology/scripts/check-backups.sh >> /volume1/joinerflow/logs/backup-cron.log 2>&1
+0 2 * * * /volume1/joinerflow-data/deployment/synology/scripts/backup-joinerflow.sh >> /volume1/joinerflow/logs/backup-cron.log 2>&1
+10 2 * * * /volume1/joinerflow-data/deployment/synology/scripts/check-backups.sh >> /volume1/joinerflow/logs/backup-cron.log 2>&1

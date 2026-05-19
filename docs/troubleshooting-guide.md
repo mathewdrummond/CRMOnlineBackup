@@ -32,8 +32,8 @@ sudo systemctl status joinerflow-api
 Synology NAS:
 
 ```bash
-./deployment/synology/scripts/check-health.sh
-docker logs joinerflow-server --tail 200
+sudo ./deployment/synology/scripts/check-health.sh
+sudo /usr/local/bin/docker logs joinerflow-server --tail 200
 ```
 
 ## Login Fails

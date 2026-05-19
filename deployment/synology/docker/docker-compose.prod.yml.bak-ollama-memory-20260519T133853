@@ -109,7 +109,7 @@ services:
     networks:
       - joinerflow-internal
     healthcheck:
-      test: ["CMD-SHELL", 'bash -ec "exec 3<>/dev/tcp/127.0.0.1/6333; echo -en \"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n\" >&3; read -r status <&3; [[ \$$status == *200* ]]"']
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:6333/healthz >/dev/null || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 8
@@ -198,7 +198,7 @@ services:
     volumes:
       - ${JOINERFLOW_INSTALL_ROOT:-/volume1/joinerflow}/ai/models:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", 'bash -ec "exec 3<>/dev/tcp/127.0.0.1/11434; echo -en \"GET /api/tags HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n\" >&3; read -r status <&3; [[ \$$status == *200* ]]"']
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:11434/api/tags >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 6
@@ -210,10 +210,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M
+          memory: 2100M
           pids: 256
         reservations:
-          memory: 2048M
+          memory: 768M
     pids_limit: 256
 
   caddy:

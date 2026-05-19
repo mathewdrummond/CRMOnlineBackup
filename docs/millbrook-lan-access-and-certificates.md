@@ -173,5 +173,6 @@ joinerflow-server
 joinerflow-client
 joinerflow-clock-client
 joinerflow-postgres
+qdrant
+ollama
 ```
-

@@ -16,9 +16,9 @@ if ! is_true "${AI_ENABLED:-true}"; then
 fi
 
 models=(
-  "${OLLAMA_PRIMARY_MODEL:-qwen2.5:3b-instruct-q4_K_M}"
-  "${OLLAMA_FAST_MODEL:-gemma3:1b}"
-  "${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+  "${OLLAMA_PRIMARY_MODEL:-gemma3:4b}"
+  "${OLLAMA_FAST_MODEL:-phi4-mini:latest}"
+  "${OLLAMA_EMBED_MODEL:-nomic-embed-text:latest}"
 )
 
 log_info "Ensuring Ollama container is running."
@@ -54,12 +54,12 @@ done
 log_info "Validating inference and embeddings."
 curl -fsS "http://127.0.0.1:${JOINERFLOW_OLLAMA_PORT:-11434}/api/generate" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${OLLAMA_PRIMARY_MODEL:-qwen2.5:3b-instruct-q4_K_M}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/dev/null
+  -d "{\"model\":\"${OLLAMA_PRIMARY_MODEL:-gemma3:4b}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/dev/null
 curl -fsS "http://127.0.0.1:${JOINERFLOW_OLLAMA_PORT:-11434}/api/generate" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${OLLAMA_FAST_MODEL:-gemma3:1b}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/dev/null
+  -d "{\"model\":\"${OLLAMA_FAST_MODEL:-phi4-mini:latest}\",\"prompt\":\"Reply with OK only\",\"stream\":false}" >/dev/null
 curl -fsS "http://127.0.0.1:${JOINERFLOW_OLLAMA_PORT:-11434}/api/embeddings" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${OLLAMA_EMBED_MODEL:-nomic-embed-text}\",\"prompt\":\"JoinerFlow embedding test\"}" | jq -e '.embedding and (.embedding | length > 0)' >/dev/null
+  -d "{\"model\":\"${OLLAMA_EMBED_MODEL:-nomic-embed-text:latest}\",\"prompt\":\"JoinerFlow embedding test\"}" | jq -e '.embedding and (.embedding | length > 0)' >/dev/null
 
 log_info "Ollama model installation complete."

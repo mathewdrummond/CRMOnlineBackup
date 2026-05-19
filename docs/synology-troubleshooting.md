@@ -5,7 +5,7 @@
 Run:
 
 ```bash
-./deployment/synology/scripts/preflight-synology.sh
+sudo ./deployment/synology/scripts/preflight-synology.sh
 ```
 
 Common failures:
@@ -21,8 +21,8 @@ Common failures:
 Run:
 
 ```bash
-docker logs joinerflow-server --tail 200
-./deployment/synology/scripts/check-health.sh
+sudo /usr/local/bin/docker logs joinerflow-server --tail 200
+sudo ./deployment/synology/scripts/check-health.sh
 ```
 
 Common causes:
@@ -36,8 +36,8 @@ Common causes:
 Run:
 
 ```bash
-docker logs ollama --tail 200
-./deployment/synology/scripts/check-ai.sh
+sudo /usr/local/bin/docker logs ollama --tail 200
+sudo ./deployment/synology/scripts/check-ai.sh
 ```
 
 Common causes:
@@ -45,19 +45,22 @@ Common causes:
 1. Model pull incomplete.
 2. Insufficient RAM for concurrent model loading.
 3. Incorrect `OLLAMA_BASE_URL`.
+4. Model directory permission issue under `/volume1/joinerflow/ai/models`.
+5. Qdrant data directory issue under `/volume1/vector-data/qdrant`.
 
 Mitigation:
 
 1. Keep `OLLAMA_NUM_PARALLEL=1`.
 2. Keep `OLLAMA_MAX_LOADED_MODELS=1`.
-3. Restart Ollama and reinstall models.
+3. Keep only the active model set installed: `gemma3:4b`, `phi4-mini:latest`, and `nomic-embed-text:latest`.
+4. Restart Ollama and reinstall models.
 
 ## 4. Backup Validation Fails
 
 Run:
 
 ```bash
-./deployment/synology/scripts/check-backups.sh
+sudo ./deployment/synology/scripts/check-backups.sh
 ```
 
 Common causes:
@@ -78,7 +81,7 @@ Run:
 
 ```bash
 ./deployment/synology/scripts/check-storage.sh
-docker stats --no-stream
+sudo /usr/local/bin/docker stats --no-stream
 ```
 
 Actions:
@@ -92,21 +95,21 @@ Actions:
 1. Stop stack:
 
 ```bash
-./deployment/synology/stop-joinerflow-synology.sh
+sudo ./deployment/synology/stop-joinerflow-synology.sh
 ```
 
 2. Restore last known good snapshot:
 
 ```bash
-./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
+sudo ./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
 ```
 
 3. Re-run diagnostics:
 
 ```bash
-./deployment/synology/scripts/check-health.sh
-./deployment/synology/scripts/check-ai.sh
-./deployment/synology/scripts/check-storage.sh
+sudo ./deployment/synology/scripts/check-health.sh
+sudo ./deployment/synology/scripts/check-ai.sh
+sudo ./deployment/synology/scripts/check-storage.sh
 ```
 
 ## 7. Update Procedure
@@ -115,7 +118,7 @@ Actions:
 2. Re-run install flow:
 
 ```bash
-./deployment/synology/install-joinerflow.sh
+sudo ./deployment/synology/install-joinerflow.sh
 ```
 
 3. Confirm health and backups.

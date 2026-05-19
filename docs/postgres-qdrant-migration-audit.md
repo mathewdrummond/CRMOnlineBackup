@@ -24,7 +24,7 @@ The primary architecture gap for the PostgreSQL + Qdrant roadmap is that persist
 | `depcheck --skip-missing=true` server | No issue. |
 | `depcheck --skip-missing=true` client | Reported unused UI/development dependencies including several Radix/shadcn packages, `dayjs`, `next-themes`, `zod`, and unused eslint plugins. Requires UI-safe pruning later. |
 | `depcheck --skip-missing=true` clock-client | No issue. |
-| `knip --no-progress` | Reported 147 unused files, many from `joinerflow-source`, unused shadcn components, `deploy/pm2`, `prisma`, and some active-app candidates that need manual verification. |
+| `knip --no-progress` | Reported unused shadcn components, historical deployment files, old Prisma files, and some active-app candidates that need manual verification. |
 | `madge --circular --extensions ts,tsx,js,jsx server/src client/src clock-client/src` | No circular dependencies found. |
 | `eslint-unused-imports` | Dependency exists in the client but is not wired into `client/eslint.config.cjs`; current client lint uses core `no-unused-vars` plus a local JSX helper. |
 
@@ -87,7 +87,7 @@ The current graph is mostly acyclic after the install-estimator default split. T
 
 ### Archived/Legacy
 
-- `joinerflow-source/`: archived/sanitized source snapshot with Base44 entity definitions and duplicate app code.
+- Base44 entity definitions retained as test fixtures under `server/src/__fixtures__/base44/entities`.
 - `prisma/`: old Prisma schema, migration, and seed files not part of the current runtime path.
 - `deploy/pm2/`: old PM2 config outside the Synology Docker deployment path.
 
@@ -222,6 +222,8 @@ Active Synology Docker files:
   - `joinerflow-server`
   - `joinerflow-client`
   - `joinerflow-clock-client`
+  - `postgres`
+  - `qdrant`
   - `ollama`
   - `joinerflow-proxy` / Caddy
 - `deployment/synology/docker/docker-compose.ai.yml`
@@ -243,10 +245,9 @@ Current storage layout in Docker config:
 
 Target drift:
 
-- No PostgreSQL service exists yet.
-- No Qdrant service exists yet.
+- PostgreSQL and Qdrant services now exist in production compose, but SQLite remains the default primary database unless `DATABASE_DRIVER=postgres`.
 - ChromaDB has been replaced; Qdrant is the active vector service.
-- Backup/restore scripts assume SQLite file snapshots.
+- Backup/restore scripts now support SQLite snapshots or PostgreSQL logical dumps, and include Qdrant data when AI is enabled.
 
 ## Environment Variable Inventory
 
@@ -340,7 +341,7 @@ Current storage surfaces:
 - AI models: `${JOINERFLOW_INSTALL_ROOT}/ai/models`.
 - AI/Open WebUI data: `${JOINERFLOW_INSTALL_ROOT}/ai/open-webui`.
 - Qdrant: `/volume1/vector-data/qdrant`.
-- AI knowledge sources: allowlisted roots such as filesystem and imports.
+- AI knowledge sources: configured app-owned roots plus dynamically discovered valid Synology shared folders under `/volume1/*`.
 
 Target storage changes:
 
@@ -354,7 +355,7 @@ Target storage changes:
 
 Do not remove in Phase 1; these need manual confirmation or later phased cleanup:
 
-- `joinerflow-source/`: archived Base44/source snapshot. `knip` flags almost all of it. It may still be useful as reference data, so removal should wait for an explicit archive/export decision.
+- Base44 entity JSONC definitions are retained only as server test fixtures under `server/src/__fixtures__/base44/entities`; the archived duplicate source tree has been retired.
 - `prisma/`: old Prisma schema/migration/seed. No active runtime uses Prisma.
 - `deploy/pm2/ecosystem.config.cjs`: likely pre-Docker deployment remnant.
 - Large unused shadcn/Radix component set in `client/src/components/ui`.

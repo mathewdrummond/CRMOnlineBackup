@@ -4,11 +4,12 @@ Backups protect the live Millbrook data: database, uploaded files, generated doc
 
 ## What Must Be Backed Up
 
-- SQLite database: `SQLITE_PATH`
+- Database: `SQLITE_PATH` when `DATABASE_DRIVER=sqlite`, or PostgreSQL dump/volume when `DATABASE_DRIVER=postgres`
 - File storage: `FILESYSTEM_ROOT`
 - Logs: `LOG_DIRECTORY`
 - Server environment: `server/.env` / `server/.env.local`
 - Release files, or the source checkout used to build them
+- AI vector/model data when local AI is enabled
 
 ## Backup Before Any Change
 
@@ -21,7 +22,7 @@ deploy/linux/backup-joinerflow.sh /opt/joinerflow /var/backups/joinerflow
 Synology NAS:
 
 ```bash
-./deployment/synology/scripts/backup-joinerflow.sh
+sudo ./deployment/synology/scripts/backup-joinerflow.sh
 ```
 
 ## Restore Rules
@@ -46,7 +47,7 @@ sudo systemctl start joinerflow-api
 Synology NAS:
 
 ```bash
-./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
+sudo ./deployment/synology/scripts/restore-joinerflow.sh /volume1/joinerflow/backups/snapshot-YYYYMMDD-HHMMSS
 ```
 
 ## Restore Validation

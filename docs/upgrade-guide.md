@@ -23,9 +23,9 @@ sudo systemctl restart joinerflow-api
 Synology NAS:
 
 ```bash
-./deployment/synology/scripts/backup-joinerflow.sh
-./deployment/synology/restart-joinerflow-synology.sh
-./deployment/synology/scripts/check-health.sh
+sudo ./deployment/synology/scripts/backup-joinerflow.sh
+sudo ./deployment/synology/restart-joinerflow-synology.sh
+sudo ./deployment/synology/scripts/check-health.sh
 ```
 
 ## After Upgrade

@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 import { KNOWN_ENTITY_NAMES } from "./db";
 
-const entityDefinitionsDirectory = path.resolve(process.cwd(), "joinerflow-source/base44/entities");
+const entityDefinitionsDirectory = path.resolve(process.cwd(), "server/src/__fixtures__/base44/entities");
 
 function stripJsonComments(source: string) {
   let output = "";
