@@ -22,6 +22,9 @@ import ApprovalPanel from "../components/workflow/ApprovalPanel";
 import ChecklistPanel from "../components/workflow/ChecklistPanel";
 import ChangeOrderPanel from "../components/workflow/ChangeOrderPanel";
 import AiDraftPanel from "../components/ai/AiDraftPanel";
+import CreateQuoteOptionModal from "../components/quotes/CreateQuoteOptionModal";
+import QuoteComparisonView from "../components/quotes/QuoteComparisonView";
+import QuoteVersionList from "../components/quotes/QuoteVersionList";
 import { SortableButton } from "@/components/ui/sortable-header";
 import { getNextSortState } from "@/lib/tableSorting";
 import { groupRowsWithChildren } from "@/lib/parentChildRows";
@@ -637,6 +640,7 @@ export default function QuoteDetail() {
   const [itemForm, setItemForm] = useState({ description: "", category: "materials", quantity: 1, unit: "ea", unit_cost: 0, markup_percent: 30, section: "General", section_id: "", section_key: "general", section_display_order: 999, is_optional: false, is_price_locked: false });
   const [editItemForm, setEditItemForm] = useState({ description: "", category: "materials", quantity: 1, unit: "ea", unit_cost: 0, markup_percent: 30, section: "General", section_id: "", section_key: "general", section_display_order: 999, is_optional: false, is_price_locked: false });
   const [editItemSaveAsDefault, setEditItemSaveAsDefault] = useState(false);
+  const [addingEditItemToAutoInclusions, setAddingEditItemToAutoInclusions] = useState(false);
   const [saveDefaultsItem, setSaveDefaultsItem] = useState(null);
   const [saveDefaultsFields, setSaveDefaultsFields] = useState({ price: true, category: true, section: true });
   const [savingDefaults, setSavingDefaults] = useState(false);
@@ -692,6 +696,11 @@ export default function QuoteDetail() {
   const [quoteRiskAnalysis, setQuoteRiskAnalysis] = useState(null);
   const [similarHistoricalJobs, setSimilarHistoricalJobs] = useState([]);
   const [quoteKnowledgeResults, setQuoteKnowledgeResults] = useState([]);
+  const [quoteFamily, setQuoteFamily] = useState(null);
+  const [quoteFamilyLoading, setQuoteFamilyLoading] = useState(false);
+  const [quoteComparison, setQuoteComparison] = useState(null);
+  const [showCreateOptionModal, setShowCreateOptionModal] = useState(false);
+  const [creatingQuoteOption, setCreatingQuoteOption] = useState(false);
   const [advancedQuoteMode, setAdvancedQuoteMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage?.getItem("joinerflow-quote-advanced-mode") === "true";
@@ -777,6 +786,12 @@ export default function QuoteDetail() {
     setWorkflowTasks((Array.isArray(workflowTaskRecords) ? workflowTaskRecords : []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
     setTimeEntries(Array.isArray(timeEntryRecords) ? timeEntryRecords : []);
     setAttachments(files);
+    setQuoteFamilyLoading(true);
+    crmApi.quotes.listVersions(id)
+      .then((family) => setQuoteFamily(family || null))
+      .catch(() => setQuoteFamily(null))
+      .finally(() => setQuoteFamilyLoading(false));
+    setQuoteComparison(null);
     if (q?.id && crmApi.ai) {
       if (crmApi.ai.similarQuotes) {
         crmApi.ai.similarQuotes(q.id, { limit: 4 })
@@ -816,6 +831,67 @@ export default function QuoteDetail() {
       setQuoteRiskAnalysis(null);
       setSimilarHistoricalJobs([]);
       setQuoteKnowledgeResults([]);
+    }
+  };
+
+  const refreshQuoteFamily = async () => {
+    setQuoteFamilyLoading(true);
+    try {
+      const family = await crmApi.quotes.listVersions(id);
+      setQuoteFamily(family || null);
+      return family;
+    } catch {
+      setQuoteFamily(null);
+      return null;
+    } finally {
+      setQuoteFamilyLoading(false);
+    }
+  };
+
+  const createQuoteOption = async (payload) => {
+    setCreatingQuoteOption(true);
+    try {
+      const result = await crmApi.quotes.duplicate(id, payload);
+      setShowCreateOptionModal(false);
+      setQuoteFamily(result.family || await refreshQuoteFamily());
+      toast({ title: "Quote option created", description: `${result.quote?.quote_number || "New option"} is ready for independent pricing.` });
+      if (result.quote?.id) navigate(`/quotes/${result.quote.id}`);
+    } catch (error) {
+      toast({ title: "Could not create option", description: error instanceof Error ? error.message : "Quote duplication failed.", variant: "destructive" });
+    } finally {
+      setCreatingQuoteOption(false);
+    }
+  };
+
+  const compareQuoteOption = async (version) => {
+    try {
+      const comparison = await crmApi.quotes.compareVersions(id, version.id);
+      setQuoteComparison(comparison);
+      setActiveQuoteTab("versions");
+    } catch (error) {
+      toast({ title: "Could not compare options", description: error instanceof Error ? error.message : "Version comparison failed.", variant: "destructive" });
+    }
+  };
+
+  const markPrimaryQuoteOption = async (version) => {
+    try {
+      const result = await crmApi.quotes.markPrimaryVersion(version.id, { row_version: version.row_version });
+      setQuoteFamily(result.family || await refreshQuoteFamily());
+      toast({ title: "Primary option updated" });
+    } catch (error) {
+      toast({ title: "Could not mark primary", description: error instanceof Error ? error.message : "Refresh and try again.", variant: "destructive" });
+    }
+  };
+
+  const archiveQuoteOption = async (version) => {
+    const confirmed = window.confirm(`Archive ${version.quote_option_name || version.quote_number || "this option"}? It will remain searchable but hidden from active option decisions.`);
+    if (!confirmed) return;
+    try {
+      const result = await crmApi.quotes.archiveVersion(version.id, { row_version: version.row_version });
+      setQuoteFamily(result.family || await refreshQuoteFamily());
+      toast({ title: "Quote option archived" });
+    } catch (error) {
+      toast({ title: "Could not archive option", description: error instanceof Error ? error.message : "Refresh and try again.", variant: "destructive" });
     }
   };
 
@@ -1299,6 +1375,55 @@ export default function QuoteDetail() {
     }
     setEditItemSaveAsDefault(false);
     setEditingItem(null);
+  };
+
+  const addEditingItemToAutoInclusions = async () => {
+    if (!editingItem) return;
+    if (!ensureQuoteEditAllowed()) return;
+
+    const description = String(editItemForm.description || "").trim();
+    if (!description) {
+      toast({
+        title: "Description required",
+        description: "Add a description before saving this line as an every job inclusion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const quantity = Number(editItemForm.quantity || 1);
+    const inclusionQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+
+    setAddingEditItemToAutoInclusions(true);
+    try {
+      await crmApi.entities.GlobalAutoInclusion.create({
+        description,
+        category: editItemForm.category || editingItem.category || "misc_fixings",
+        quantity: inclusionQuantity,
+        unit: editItemForm.unit || editingItem.unit || "ea",
+        cost: 0,
+        markup: 0,
+        gst_treatment: editingItem.gst_treatment || "ex_gst",
+        active: true,
+        review_required: true,
+        notes: `Created from quote ${quote?.quote_number || quote?.id || id || ""} line item.`,
+      });
+      await loadData();
+      toast({
+        title: "Added to every job inclusions",
+        description: "The inclusion was saved with a zero amount. This quote line was left unchanged.",
+      });
+      setEditItemSaveAsDefault(false);
+      setEditingItem(null);
+    } catch (error) {
+      toast({
+        title: "Could not add every job inclusion",
+        description: error instanceof Error ? error.message : "The inclusion was not saved. Refresh and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingEditItemToAutoInclusions(false);
+    }
   };
 
   const toggleItemPriceLock = async (item) => {
@@ -2779,6 +2904,7 @@ export default function QuoteDetail() {
             <TabsTrigger value="site-measure">Site Measure</TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
             <TabsTrigger value="quote-list">Review Quote List ({items.length})</TabsTrigger>
+            <TabsTrigger value="versions">Options</TabsTrigger>
             <TabsTrigger value="files">Documents & Files ({attachments.length})</TabsTrigger>
             {advancedQuoteMode ? (
               <>
@@ -3172,6 +3298,19 @@ export default function QuoteDetail() {
             onAdd={(values) => addQuoteChangeOrder(values)}
             onUpdateStatus={(changeOrderId, status) => updateQuoteChangeOrderStatus(changeOrderId, status)}
           />
+        </TabsContent>
+
+        <TabsContent value="versions" className="space-y-5">
+          <QuoteVersionList
+            quote={quote}
+            family={quoteFamily}
+            loading={quoteFamilyLoading}
+            onCreate={() => setShowCreateOptionModal(true)}
+            onCompare={compareQuoteOption}
+            onMarkPrimary={markPrimaryQuoteOption}
+            onArchive={archiveQuoteOption}
+          />
+          <QuoteComparisonView comparison={quoteComparison} />
         </TabsContent>
 
         <TabsContent value="site-measure">
@@ -4070,9 +4209,21 @@ export default function QuoteDetail() {
               />
               Save cost, category, and section as the default for future imports
             </label>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingItem(null)}>Cancel</Button>
-              <Button onClick={() => void updateItem()} disabled={!editItemForm.description}>Save Changes</Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void addEditingItemToAutoInclusions()}
+                disabled={!editItemForm.description || addingEditItemToAutoInclusions}
+                className="justify-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                {addingEditItemToAutoInclusions ? "Adding..." : "Add to Every Job"}
+              </Button>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditingItem(null)} disabled={addingEditItemToAutoInclusions}>Cancel</Button>
+                <Button onClick={() => void updateItem()} disabled={!editItemForm.description || addingEditItemToAutoInclusions}>Save Changes</Button>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -4794,6 +4945,13 @@ export default function QuoteDetail() {
         attachment={versionAttachment}
         open={Boolean(versionAttachment)}
         onOpenChange={(open) => !open && setVersionAttachment(null)}
+      />
+      <CreateQuoteOptionModal
+        open={showCreateOptionModal}
+        onOpenChange={setShowCreateOptionModal}
+        quote={quote}
+        saving={creatingQuoteOption}
+        onCreate={createQuoteOption}
       />
     </div>
   );

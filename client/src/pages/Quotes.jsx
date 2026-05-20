@@ -141,7 +141,7 @@ export default function Quotes() {
   const filtered = useMemo(
     () =>
       quoteRows.filter(({ quote, operational }) => {
-        const matchesSearch = `${quote.title} ${quote.quote_number} ${quote.contact_name} ${quote.company_name}`.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = `${quote.title} ${quote.quote_number} ${quote.quote_option_name || ""} ${quote.version_status || ""} ${quote.contact_name} ${quote.company_name}`.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === "all" || operational.normalizedStatus === statusFilter;
         const matchesHealth = healthFilter === "all" || operational.health.label.toLowerCase().replace(/\s+/g, "_") === healthFilter;
         return matchesSearch && matchesStatus && matchesHealth;
@@ -150,7 +150,8 @@ export default function Quotes() {
   );
   const { sortedRows: sortedQuotes, sortState, requestSort } = useSortableRows(filtered, QUOTE_SORT_COLUMNS);
 
-  const openQuotes = quoteRows.filter(({ quote }) => isOpenQuote(quote));
+  const pipelineQuoteRows = quoteRows.filter(({ quote }) => quote.is_primary_version || String(quote.version_status || "") === "accepted" || !quote.quote_family_id);
+  const openQuotes = pipelineQuoteRows.filter(({ quote }) => isOpenQuote(quote));
   const quotesAwaitingDecision = openQuotes.filter(({ operational }) => ["Awaiting decision", "Follow up", "Expiring soon", "Expired"].includes(operational.health.label));
   const readyToSendQuotes = openQuotes.filter(({ operational }) => operational.health.label === "Ready to send");
   const expiringQuotes = openQuotes.filter(({ operational }) => operational.daysUntilValid != null && operational.daysUntilValid >= 0 && operational.daysUntilValid <= 7);
@@ -163,7 +164,7 @@ export default function Quotes() {
     <div className="jf-reference-page">
       <PageHeader
         title="Quotes"
-        subtitle={`${quotes.length} quotes · ${formatCurrency(quotes.reduce((sum, quote) => sum + (quote.total || 0), 0))} total`}
+        subtitle={`${quotes.length} quotes · ${formatCurrency(pipelineQuoteRows.reduce((sum, { quote }) => sum + (quote.total || 0), 0))} active pipeline total`}
         actions={<Button size="sm" className="jf-reference-action" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" />New Quote</Button>}
       />
       {loadError ? (
@@ -256,6 +257,14 @@ export default function Quotes() {
                         <p className="text-xs text-muted-foreground">
                           {operational.ageDays != null ? `${operational.ageDays} day${operational.ageDays === 1 ? "" : "s"} old` : "Recently created"}
                         </p>
+                        {(quote.quote_option_name || quote.quote_version_number > 1 || quote.is_archived_version) ? (
+                          <div className="flex flex-wrap gap-1">
+                            {quote.quote_option_name ? <StatusBadge label={quote.quote_option_name} color="blue" /> : null}
+                            {quote.quote_version_number > 1 ? <StatusBadge label={`V${quote.quote_version_number}`} color="slate" /> : null}
+                            {quote.is_primary_version ? <StatusBadge label="Primary" color="green" /> : null}
+                            {quote.is_archived_version ? <StatusBadge label="Archived option" color="slate" /> : null}
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{quote.contact_name || quote.company_name || "—"}</td>

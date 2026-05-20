@@ -9,6 +9,8 @@ ENV_DIR="${SYN_ROOT}/env"
 DOCKER_DIR="${SYN_ROOT}/docker"
 DEFAULT_INSTALL_ROOT="/volume1/joinerflow"
 
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/syno/bin:/usr/syno/sbin:${PATH:-}"
+
 log_info() { printf '[INFO] %s\n' "$*"; }
 log_warn() { printf '[WARN] %s\n' "$*" >&2; }
 log_error() { printf '[ERROR] %s\n' "$*" >&2; }
@@ -19,6 +21,43 @@ require_cmd() {
     log_error "Required command not found: ${cmd}"
     return 1
   fi
+}
+
+docker_bin() {
+  if command -v docker >/dev/null 2>&1; then
+    command -v docker
+    return 0
+  fi
+
+  if [ -x /usr/local/bin/docker ]; then
+    printf '/usr/local/bin/docker\n'
+    return 0
+  fi
+
+  return 1
+}
+
+wait_for_docker() {
+  local attempts="${1:-60}"
+  local delay="${2:-5}"
+  local docker_cmd
+
+  if ! docker_cmd="$(docker_bin)"; then
+    log_error "Docker executable was not found."
+    return 1
+  fi
+
+  local i=1
+  while [ "$i" -le "$attempts" ]; do
+    if "$docker_cmd" info >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay"
+    i=$((i + 1))
+  done
+
+  log_error "Docker daemon did not become ready after $((attempts * delay)) seconds."
+  return 1
 }
 
 load_env_files() {
@@ -45,8 +84,10 @@ load_env_files() {
 }
 
 compose_cmd() {
-  if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+  local docker_cmd
+
+  if docker_cmd="$(docker_bin)" && "$docker_cmd" compose version >/dev/null 2>&1; then
+    "$docker_cmd" compose "$@"
     return 0
   fi
 

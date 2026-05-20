@@ -77,6 +77,94 @@ afterAll(() => {
   fs.rmSync(testRoot, { recursive: true, force: true });
 });
 
+describe("quote versioning API", () => {
+  test("duplicates quote versions with isolated pricing rows and comparison metadata", async () => {
+    const agent = await createAuthenticatedAgent();
+    const quoteResponse = await agent.post("/api/entities/Quote").send({
+      title: "Yandell kitchen",
+      quote_number: "QTE-VERSION-1",
+      status: "draft",
+      subtotal: 1000,
+      gst: 150,
+      total: 1150,
+      contact_name: "S Yandell",
+    }).expect(201);
+    await agent.post("/api/entities/QuoteItem").send({
+      quote_id: quoteResponse.body.id,
+      description: "Melteca cabinetry",
+      category: "materials",
+      quantity: 2,
+      unit_cost: 250,
+      markup_percent: 100,
+      sell_price: 500,
+      total: 1000,
+      section: "Materials",
+    }).expect(201);
+
+    const duplicate = await agent.post(`/api/quotes/${quoteResponse.body.id}/duplicate`).send({
+      option_name: "Option B - Veneer",
+      option_description: "Premium veneer material option",
+    }).expect(201);
+
+    expect(duplicate.body.quote.id).not.toBe(quoteResponse.body.id);
+    expect(duplicate.body.quote.quote_family_id).toBe(quoteResponse.body.id);
+    expect(duplicate.body.quote.parent_quote_id).toBe(quoteResponse.body.id);
+    expect(duplicate.body.quote.quote_version_number).toBe(2);
+    expect(duplicate.body.quote.quote_option_name).toBe("Option B - Veneer");
+    expect(duplicate.body.quote.status).toBe("draft");
+    expect(duplicate.body.quote.approval_history).toEqual([]);
+    expect(duplicate.body.copied_record_counts.QuoteItem).toBe(1);
+
+    const copiedItems = await agent.get("/api/entities/QuoteItem").query({ quote_id: duplicate.body.quote.id }).expect(200);
+    expect(copiedItems.body).toHaveLength(1);
+    expect(copiedItems.body[0].quote_id).toBe(duplicate.body.quote.id);
+    expect(copiedItems.body[0].copied_from_quote_id).toBe(quoteResponse.body.id);
+
+    const family = await agent.get(`/api/quotes/${duplicate.body.quote.id}/versions`).expect(200);
+    expect(family.body.versions.map((quote) => quote.quote_number)).toEqual(["QTE-VERSION-1", "QTE-VERSION-1-V2"]);
+
+    await agent.put(`/api/entities/QuoteItem/${copiedItems.body[0].id}`).send({
+      ...copiedItems.body[0],
+      total: 1400,
+      sell_price: 700,
+      row_version: copiedItems.body[0].row_version,
+    }).expect(200);
+    const comparison = await agent
+      .get(`/api/quotes/${quoteResponse.body.id}/versions/compare`)
+      .query({ compare_quote_id: duplicate.body.quote.id })
+      .expect(200);
+    expect(comparison.body.changed_items[0].change_type).toBe("changed");
+    expect(comparison.body.changed_items[0].delta_total).toBe(400);
+
+    const audits = await agent.get("/api/entities/QuoteVersionAudit").expect(200);
+    expect(audits.body.some((record) => record.action_type === "version_created" && record.quote_id === duplicate.body.quote.id)).toBe(true);
+  });
+
+  test("prevents two sibling quote versions from becoming production jobs", async () => {
+    const agent = await createAuthenticatedAgent();
+    const quoteResponse = await agent.post("/api/entities/Quote").send({
+      title: "Kitchen option set",
+      quote_number: "QTE-PROD-1",
+      status: "draft",
+      subtotal: 500,
+      gst: 75,
+      total: 575,
+    }).expect(201);
+    const duplicate = await agent.post(`/api/quotes/${quoteResponse.body.id}/duplicate`).send({
+      option_name: "Premium appliance version",
+    }).expect(201);
+
+    await agent.post(`/api/quotes/${duplicate.body.quote.id}/convert-to-job`).send({ job_number: "JOB-OPTION-B" }).expect(201);
+    await agent.post(`/api/quotes/${quoteResponse.body.id}/convert-to-job`).send({ job_number: "JOB-OPTION-A" }).expect(409);
+
+    const source = await agent.get(`/api/entities/Quote/${quoteResponse.body.id}`).expect(200);
+    const accepted = await agent.get(`/api/entities/Quote/${duplicate.body.quote.id}`).expect(200);
+    expect(accepted.body.version_status).toBe("accepted");
+    expect(source.body.version_status).toBe("not_selected");
+    expect(source.body.sibling_accepted_quote_id).toBe(duplicate.body.quote.id);
+  });
+});
+
 describe("server security and reliability", () => {
   test("exposes stable unauthenticated health checks with production security headers", async () => {
     for (const healthPath of ["/health", "/api/health"]) {

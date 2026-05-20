@@ -177,6 +177,9 @@ import {
   findMatchingPricingSection,
   normalizePricingSectionName,
 } from "./pricingSections";
+import { compareQuoteVersions } from "./quotes/quoteComparison";
+import { duplicateQuote, getQuoteFamilyBundle } from "./quotes/duplicateQuote";
+import { buildQuoteVersionAuditPayload, isQuoteVersionAccepted, resolveQuoteFamilyId } from "./quotes/quoteVersioning";
 import { EntityRecord, LocalUser } from "./types";
 import { loadEnvFiles } from "./runtimeConfig";
 
@@ -249,6 +252,16 @@ const testSessionSchema = z.object({
 
 const quoteConversionSchema = z.object({
   job_number: z.string().trim().min(2).max(80).regex(/^[A-Za-z0-9._/\- ]+$/),
+});
+
+const quoteDuplicateSchema = z.object({
+  option_name: z.string().trim().min(1).max(120).optional(),
+  option_description: z.string().trim().max(1000).optional(),
+  quote_number: z.string().trim().max(80).regex(/^[A-Za-z0-9._/\- ]+$/).optional(),
+});
+
+const quoteVersionUpdateSchema = z.object({
+  row_version: z.coerce.number().int().min(1).optional(),
 });
 
 const moduleConfigSchema = z.object({
@@ -2134,6 +2147,126 @@ export async function createApp() {
     }
   });
 
+  app.get("/api/quotes/:id/versions", (req: Request, res: Response) => {
+    try {
+      requireAuthenticatedApiUser(req);
+      requireModuleEnabled("quotes");
+      const bundle = getQuoteFamilyBundle(readRouteParam(req.params.id));
+      if (!bundle) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+      res.json(bundle);
+    } catch (error) {
+      handleRouteError(error, res);
+    }
+  });
+
+  app.get("/api/quotes/:id/versions/compare", (req: Request, res: Response) => {
+    try {
+      requireAuthenticatedApiUser(req);
+      requireModuleEnabled("quotes");
+      const baseQuoteId = readRouteParam(req.params.id);
+      const compareQuoteId = String(req.query.compare_quote_id || "").trim();
+      if (!compareQuoteId) throw new RouteRequestError(400, "compare_quote_required", "A comparison quote is required.");
+      const baseQuote = getEntityRecord("Quote", baseQuoteId);
+      const compareQuote = getEntityRecord("Quote", compareQuoteId);
+      if (!baseQuote || !compareQuote) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+      if (resolveQuoteFamilyId(baseQuote) !== resolveQuoteFamilyId(compareQuote)) {
+        throw new RouteRequestError(400, "quote_family_mismatch", "Quotes must belong to the same quote family before they can be compared.");
+      }
+      res.json(compareQuoteVersions({
+        baseQuote,
+        compareQuote,
+        baseItems: listEntityRecords("QuoteItem", { filters: { quote_id: baseQuote.id }, limit: 10000 }),
+        compareItems: listEntityRecords("QuoteItem", { filters: { quote_id: compareQuote.id }, limit: 10000 }),
+      }));
+    } catch (error) {
+      handleRouteError(error, res);
+    }
+  });
+
+  app.post("/api/quotes/:id/duplicate", (req: Request, res: Response) => {
+    let actor: LocalUser | null = null;
+    try {
+      if (!enforceRateLimit(req, res, undefined, mutationRateLimiter)) return;
+      requireJsonMutation(req);
+      actor = requireAuthenticatedApiUser(req);
+      requireModuleEnabled("quotes");
+      const body = quoteDuplicateSchema.parse(req.body || {});
+      const result = duplicateQuote({
+        sourceQuoteId: readRouteParam(req.params.id),
+        optionName: body.option_name,
+        optionDescription: body.option_description,
+        quoteNumber: body.quote_number,
+        actor,
+        requestSource: readRequestSource(req) || "quote-version-duplicate",
+      });
+      ensureQuoteWorkflowTasks(result.quote, { actor, requestSource: "quote-version-duplicate:workflow" });
+      res.status(201).json({ ...result, family: getQuoteFamilyBundle(String(result.quote.id || "")) });
+    } catch (error) {
+      if (error instanceof Error && error.message === "quote_not_found") {
+        handleRouteError(new RouteRequestError(404, "quote_not_found", "Quote was not found."), res);
+        return;
+      }
+      handleRouteError(error, res);
+    }
+  });
+
+  app.post("/api/quotes/:id/versions/primary", (req: Request, res: Response) => {
+    let actor: LocalUser | null = null;
+    try {
+      if (!enforceRateLimit(req, res, undefined, mutationRateLimiter)) return;
+      requireJsonMutation(req);
+      actor = requireAuthenticatedApiUser(req);
+      requireModuleEnabled("quotes");
+      const quoteId = readRouteParam(req.params.id);
+      const quote = getEntityRecord("Quote", quoteId);
+      if (!quote) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+      const body = quoteVersionUpdateSchema.parse(req.body || {});
+      const familyId = resolveQuoteFamilyId(quote);
+      const requestSource = readRequestSource(req) || "quote-version-primary";
+      const updatedQuote = runInTransaction(() => {
+        listEntityRecords("Quote", { limit: 10000 })
+          .filter((candidate) => resolveQuoteFamilyId(candidate) === familyId || String(candidate.id) === familyId)
+          .forEach((candidate) => updateEntityRecord("Quote", String(candidate.id), {
+            is_primary_version: String(candidate.id) === quoteId,
+            row_version: candidate.row_version,
+          }, { actor, request_source: requestSource, expected_row_version: candidate.row_version }));
+        const refreshed = getEntityRecord("Quote", quoteId);
+        if (!refreshed) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+        createEntityRecord("QuoteVersionAudit", buildQuoteVersionAuditPayload({ quote: refreshed, actionType: "primary_marked", actor, details: { previous_row_version: body.row_version || quote.row_version } }), { actor, request_source: requestSource });
+        return refreshed;
+      });
+      res.json({ quote: updatedQuote, family: getQuoteFamilyBundle(quoteId) });
+    } catch (error) {
+      handleRouteError(error, res);
+    }
+  });
+
+  app.post("/api/quotes/:id/versions/archive", (req: Request, res: Response) => {
+    let actor: LocalUser | null = null;
+    try {
+      if (!enforceRateLimit(req, res, undefined, mutationRateLimiter)) return;
+      requireJsonMutation(req);
+      actor = requireAuthenticatedApiUser(req);
+      requireModuleEnabled("quotes");
+      const quoteId = readRouteParam(req.params.id);
+      const quote = getEntityRecord("Quote", quoteId);
+      if (!quote) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+      if (isQuoteVersionAccepted(quote)) throw new RouteRequestError(409, "accepted_quote_version_locked", "Accepted quote versions cannot be archived.");
+      const body = quoteVersionUpdateSchema.parse(req.body || {});
+      const expectedVersion = body.row_version || Number(quote.row_version || 1);
+      const updated = updateEntityRecord("Quote", quoteId, { is_archived_version: true, version_status: "archived", row_version: expectedVersion }, {
+        actor,
+        request_source: readRequestSource(req) || "quote-version-archive",
+        expected_row_version: expectedVersion,
+      });
+      if (!updated) throw new RouteRequestError(404, "quote_not_found", "Quote was not found.");
+      createEntityRecord("QuoteVersionAudit", buildQuoteVersionAuditPayload({ quote: updated, actionType: "version_archived", actor }), { actor, request_source: "quote-version-archive" });
+      res.json({ quote: updated, family: getQuoteFamilyBundle(quoteId) });
+    } catch (error) {
+      handleRouteError(error, res);
+    }
+  });
+
   app.post("/api/quotes/:id/convert-to-job", (req: Request, res: Response) => {
     let actor: LocalUser | null = null;
     try {
@@ -2152,6 +2285,20 @@ export async function createApp() {
 
     if (!quote) {
       res.status(404).json({ error: "Quote not found" });
+      return;
+    }
+
+    const quoteFamilyId = resolveQuoteFamilyId(quote);
+    const siblingAcceptedQuote = listEntityRecords("Quote", { limit: 10000 })
+      .filter((candidate) => String(candidate.id || "") !== quoteId)
+      .filter((candidate) => resolveQuoteFamilyId(candidate) === quoteFamilyId || String(candidate.id || "") === quoteFamilyId)
+      .find(isQuoteVersionAccepted);
+    if (siblingAcceptedQuote) {
+      res.status(409).json({
+        error: "A sibling quote option has already been accepted or converted.",
+        accepted_quote_id: siblingAcceptedQuote.id,
+        accepted_quote_number: siblingAcceptedQuote.quote_number,
+      });
       return;
     }
 
@@ -2214,12 +2361,36 @@ export async function createApp() {
     ensureEntityUploadDirectory("Job", createdJob);
     archiveAndMoveQuoteFiles(req, quote, createdJob, actor);
 
-    const updatedQuote = updateEntityRecord("Quote", quoteId, { status: "won", row_version: quote.row_version }, {
+    const updatedQuote = updateEntityRecord("Quote", quoteId, {
+      status: "won",
+      version_status: "accepted",
+      accepted_version_at: new Date().toISOString(),
+      row_version: quote.row_version,
+    }, {
       actor,
       request_source: readRequestSource(req),
       expected_row_version: quote.row_version,
     });
     if (updatedQuote) {
+      listEntityRecords("Quote", { limit: 10000 })
+        .filter((candidate) => String(candidate.id || "") !== quoteId)
+        .filter((candidate) => resolveQuoteFamilyId(candidate) === quoteFamilyId || String(candidate.id || "") === quoteFamilyId)
+        .filter((candidate) => !isQuoteVersionAccepted(candidate))
+        .forEach((candidate) => updateEntityRecord("Quote", String(candidate.id), {
+          version_status: candidate.is_archived_version ? "archived" : "not_selected",
+          sibling_accepted_quote_id: quoteId,
+          row_version: candidate.row_version,
+        }, {
+          actor,
+          request_source: "quote-version-sibling-accepted",
+          expected_row_version: candidate.row_version,
+        }));
+      createEntityRecord("QuoteVersionAudit", buildQuoteVersionAuditPayload({
+        quote: updatedQuote,
+        actionType: "version_accepted_for_production",
+        actor,
+        details: { job_id: createdJob.id, job_number: createdJob.job_number },
+      }), { actor, request_source: "quote-version-accepted" });
       ensureQuoteWorkflowTasks(updatedQuote, {
         actor,
         requestSource: readRequestSource(req),

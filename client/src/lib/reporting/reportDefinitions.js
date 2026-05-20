@@ -258,7 +258,9 @@ function buildJobContext(data, today = new Date()) {
 }
 
 function buildQuoteRows(data, today = new Date()) {
-  return (data?.quotes || []).map((quote) => {
+  return (data?.quotes || [])
+    .filter((quote) => quote?.is_primary_version || String(quote?.version_status || "") === "accepted" || !quote?.quote_family_id)
+    .map((quote) => {
     const operational = getQuoteOperationalSummary(quote, today);
     const normalizedStatus = normalizeQuoteStatus(quote?.status);
     const customerLabel = String(quote?.company_name || quote?.contact_name || "").trim();
@@ -267,6 +269,10 @@ function buildQuoteRows(data, today = new Date()) {
       id: String(quote?.id || ""),
       label: getQuoteLabel(quote),
       quote_label: getQuoteLabel(quote),
+      quote_family_id: String(quote?.quote_family_id || quote?.id || ""),
+      quote_option_name: String(quote?.quote_option_name || "").trim(),
+      quote_version_number: Number(quote?.quote_version_number || 1),
+      version_status: String(quote?.version_status || "active"),
       customer: customerLabel,
       customer_key: String(quote?.company_id || quote?.contact_id || customerLabel),
       status: normalizedStatus,

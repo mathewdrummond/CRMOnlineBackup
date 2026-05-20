@@ -936,6 +936,7 @@ function buildEntityClient(entityName) {
       const payload = {
         ...(data || {}),
       };
+      const callerProvidedRowVersion = Object.prototype.hasOwnProperty.call(payload, "row_version");
       assertPayloadRowVersion(entityName, payload);
 
       if (payload.row_version == null && typeof existing?.row_version === "number") {
@@ -956,6 +957,21 @@ function buildEntityClient(entityName) {
         return updated;
       } catch (error) {
         if (isConflictError(error)) {
+          const currentRecord = error?.payload?.current_record || null;
+          if (!callerProvidedRowVersion && hasUsableRowVersion(currentRecord)) {
+            upsertCachedRecord(entityName, currentRecord);
+            const retryPayload = {
+              ...payload,
+              row_version: currentRecord.row_version,
+            };
+            const updated = await request(`/api/entities/${encodedEntity}/${encodeURIComponent(id)}`, {
+              method: "PUT",
+              body: JSON.stringify(retryPayload),
+            });
+            upsertCachedRecord(entityName, updated);
+            return updated;
+          }
+
           handleConflictError(entityName, error);
           throw error;
         }
@@ -1142,6 +1158,31 @@ export const crmApi = {
     },
   },
   quotes: {
+    duplicate(quoteId, data = {}) {
+      return request(`/api/quotes/${encodeURIComponent(quoteId)}/duplicate`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    listVersions(quoteId) {
+      return request(`/api/quotes/${encodeURIComponent(quoteId)}/versions`);
+    },
+    compareVersions(quoteId, compareQuoteId) {
+      const search = new URLSearchParams({ compare_quote_id: compareQuoteId });
+      return request(`/api/quotes/${encodeURIComponent(quoteId)}/versions/compare?${search.toString()}`);
+    },
+    markPrimaryVersion(quoteId, data = {}) {
+      return request(`/api/quotes/${encodeURIComponent(quoteId)}/versions/primary`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    archiveVersion(quoteId, data = {}) {
+      return request(`/api/quotes/${encodeURIComponent(quoteId)}/versions/archive`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
     async convertToJob(quoteId, data) {
       return request(`/api/quotes/${encodeURIComponent(quoteId)}/convert-to-job`, {
         method: "POST",

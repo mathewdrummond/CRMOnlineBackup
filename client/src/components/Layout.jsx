@@ -244,7 +244,7 @@ export default function Layout() {
 
     const quotes = searchData.quotes
       .filter((quote) =>
-        `${quote.quote_number || ""} ${quote.title || ""} ${quote.contact_name || ""} ${quote.company_name || ""}`
+        `${quote.quote_number || ""} ${quote.title || ""} ${quote.quote_option_name || ""} ${quote.version_status || ""} ${quote.contact_name || ""} ${quote.company_name || ""}`
           .toLowerCase()
           .includes(query)
       )
@@ -254,7 +254,7 @@ export default function Layout() {
         href: `/quotes/${quote.id}`,
         type: "Quote",
         title: `${quote.quote_number || "Quote"}${quote.title ? ` — ${quote.title}` : ""}`,
-        subtitle: quote.contact_name || quote.company_name || "",
+        subtitle: [quote.quote_option_name, quote.contact_name || quote.company_name || ""].filter(Boolean).join(" · "),
       }));
 
     const contacts = searchData.contacts

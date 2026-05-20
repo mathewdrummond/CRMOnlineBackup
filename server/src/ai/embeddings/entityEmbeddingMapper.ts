@@ -75,7 +75,7 @@ export function getSearchResultHref(entity: string, metadata: Record<string, unk
 }
 
 function buildTitle(entity: string, record: EntityRecord) {
-  if (entity === "Quote") return compactJoin([record.quote_number, record.title || record.job_name || "Quote"]);
+  if (entity === "Quote") return compactJoin([record.quote_number, record.title || record.job_name || "Quote", record.quote_option_name]);
   if (entity === "Job") return compactJoin([record.job_number, record.title || record.job_name || "Job"]);
   if (entity === "QuoteItem") return String(record.description || record.name || "Quote item");
   if (entity === "Contact") return String(record.full_name || compactJoin([record.first_name, record.last_name]) || record.email || "Contact");
@@ -98,6 +98,9 @@ function buildContentParts(entity: string, record: EntityRecord) {
     record.site_address,
     record.job_address,
     record.status,
+    record.version_status,
+    record.quote_option_name,
+    record.quote_option_description,
     record.assigned_to,
     record.designer,
     record.salesperson,
@@ -138,6 +141,9 @@ function buildMetadata(entity: string, record: EntityRecord): Record<string, unk
     designer: stringValue(record.designer || record.assigned_to || record.salesperson),
     date: stringValue(record.date || record.created_date || record.updated_date || record.due_date || record.measure_date),
     status: stringValue(record.status),
+    version_status: stringValue(record.version_status),
+    quote_family_id: stringValue(record.quote_family_id),
+    quote_option_name: stringValue(record.quote_option_name),
     related_id: stringValue(record.related_id),
     related_type: stringValue(record.related_type),
   };

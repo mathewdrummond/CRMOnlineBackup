@@ -117,6 +117,7 @@ export type QuoteDocumentInput = {
   quoteId: string;
   jobId?: string;
   quoteNumber?: string;
+  quoteVersionLabel?: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -229,6 +230,7 @@ export function buildQuoteDocumentDraft(input: {
     quoteId: String(input.quote.id || ""),
     jobId: String(input.job?.id || input.quote.job_id || ""),
     quoteNumber: String(input.quote.quote_number || "").trim(),
+    quoteVersionLabel: buildQuoteDocumentVersionLabel(input.quote),
     customerName,
     customerPhone: String(input.contact?.phone || input.contact?.mobile || input.quote.phone || "").trim(),
     customerEmail: String(input.contact?.email || input.quote.email || "").trim(),
@@ -264,6 +266,15 @@ export function buildQuoteDocumentDraft(input: {
     status: "draft",
     ...input.existing,
   };
+}
+
+function buildQuoteDocumentVersionLabel(quote: EntityRecord) {
+  const optionName = String(quote.quote_option_name || "").trim();
+  const versionNumber = Number(quote.quote_version_number || 0);
+  if (optionName && versionNumber > 1) return `${optionName} · Version ${versionNumber}`;
+  if (optionName) return optionName;
+  if (versionNumber > 1) return `Version ${versionNumber}`;
+  return "";
 }
 
 function buildQuoteDocumentLineItemNotes(item: EntityRecord) {
@@ -486,6 +497,7 @@ export function renderQuoteDocumentHtml(document: QuoteDocumentInput) {
         <h2>Job</h2>
         <div class="box">
           <p><span class="label">Job Name</span><br />${escapeHtml(document.jobName)}</p>
+          ${document.quoteVersionLabel ? `<p><span class="label">Quote Option</span><br />${escapeHtml(document.quoteVersionLabel)}</p>` : ""}
           <p><span class="label">Address</span><br />${escapeHtml(document.jobAddress || "-")}</p>
         </div>
       </div>
@@ -655,6 +667,7 @@ function buildPdfDocumentPages(document: QuoteDocumentInput) {
         "",
         "JOB",
         `Job Name: ${document.jobName}`,
+        ...(document.quoteVersionLabel ? [`Quote Option: ${document.quoteVersionLabel}`] : []),
         `Address: ${document.jobAddress || "-"}`,
         "",
         "JOB NOTES / SPECIFICATIONS",

@@ -193,6 +193,84 @@ describe("localApiClient runtime lifecycle", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  test("retries an entity update once with the latest row_version after a stale cache conflict", async () => {
+    window.localStorage.setItem("crmApi-cache-entity:Contact", JSON.stringify([
+      {
+        id: "contact-1",
+        first_name: "Cached",
+        row_version: 1,
+      },
+    ]));
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(createFetchErrorResponse(409, {
+        code: "row_version_conflict",
+        error: "This record has changed since it was loaded. Refresh and try again.",
+        current_record: {
+          id: "contact-1",
+          first_name: "Server",
+          row_version: 2,
+        },
+      }))
+      .mockResolvedValueOnce(createFetchResponse({
+        id: "contact-1",
+        first_name: "Updated",
+        row_version: 3,
+      }));
+
+    const apiModule = await import("./localApiClient.js");
+
+    await expect(apiModule.crmApi.entities.Contact.update("contact-1", {
+      first_name: "Updated",
+    })).resolves.toMatchObject({
+      id: "contact-1",
+      first_name: "Updated",
+      row_version: 3,
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toMatchObject({
+      first_name: "Updated",
+      row_version: 1,
+    });
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toMatchObject({
+      first_name: "Updated",
+      row_version: 2,
+    });
+  });
+
+  test("does not retry row_version conflicts when the caller provided an explicit row_version", async () => {
+    window.localStorage.setItem("crmApi-cache-entity:Contact", JSON.stringify([
+      {
+        id: "contact-1",
+        first_name: "Cached",
+        row_version: 1,
+      },
+    ]));
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createFetchErrorResponse(409, {
+      code: "row_version_conflict",
+      error: "This record has changed since it was loaded. Refresh and try again.",
+      current_record: {
+        id: "contact-1",
+        first_name: "Server",
+        row_version: 2,
+      },
+    }));
+
+    const apiModule = await import("./localApiClient.js");
+
+    await expect(apiModule.crmApi.entities.Contact.update("contact-1", {
+      first_name: "Updated",
+      row_version: 1,
+    })).rejects.toMatchObject({
+      payload: { code: "row_version_conflict" },
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   test("drops a queued offline update on row_version conflict and refreshes the cached record", async () => {
     window.localStorage.setItem("crmApi-cache-entity:Contact", JSON.stringify([
       {

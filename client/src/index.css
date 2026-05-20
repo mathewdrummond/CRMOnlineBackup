@@ -467,10 +467,15 @@
     background: hsl(var(--muted) / 0.45);
   }
 
+  .jf-app-main [role="tab"] {
+    color: #4f4137;
+    font-weight: 700;
+  }
+
   .jf-app-main [role="tab"][data-state="active"] {
-    background: hsl(var(--card) / 0.88);
-    color: hsl(var(--foreground));
-    box-shadow: 0 10px 22px rgba(62, 39, 22, 0.08);
+    background: #4f5148;
+    color: #fffaf2;
+    box-shadow: 0 10px 22px rgba(62, 39, 22, 0.16);
   }
 
   .jf-app-main input,
