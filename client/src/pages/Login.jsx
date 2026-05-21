@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Clock3 } from "lucide-react";
 import { sanitizeRedirectPath, useAuth } from "@/lib/AuthContext";
+import { resolveTimeClockUrl } from "@/lib/timeClockUrl";
 import { Button } from "@/components/ui/button";
 import timberLoginBackground from "@/assets/millbrook-lockscreen.jpg";
 
@@ -44,19 +45,11 @@ export default function Login() {
 
   const nextPath = useMemo(() => sanitizeRedirectPath(searchParams.get("next") || "/"), [searchParams]);
   const timeClockUrl = useMemo(() => {
-    if (CONFIGURED_TIMECLOCK_URL) {
-      return CONFIGURED_TIMECLOCK_URL;
-    }
-
-    if (!IS_DEV) {
-      return "";
-    }
-
-    if (typeof window === "undefined") {
-      return "http://127.0.0.1:5174/";
-    }
-
-    return `${window.location.protocol}//${window.location.hostname}:5174/`;
+    return resolveTimeClockUrl({
+      configuredUrl: CONFIGURED_TIMECLOCK_URL,
+      isDev: IS_DEV,
+      location: typeof window === "undefined" ? undefined : window.location,
+    });
   }, []);
 
   useEffect(() => {
