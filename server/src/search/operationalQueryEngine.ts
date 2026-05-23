@@ -57,7 +57,7 @@ export async function answerOperationalQuery(
     const response = await generateStructured({
       modelRole: "fast",
       requestId: context.requestId,
-      timeoutMs: 18_000,
+      timeoutMs: 90_000,
       retries: 0,
       temperature: 0,
       prompt: buildJsonOnlyPrompt(
@@ -95,6 +95,16 @@ export async function answerOperationalQuery(
     };
   } catch (error) {
     const normalized = error instanceof AiServiceError ? error.code : "ai_unavailable";
+    if (usableEvidence.length > 0) {
+      return {
+        status: "insufficient_evidence",
+        answer: buildEvidenceFallbackAnswer(normalized, usableEvidence),
+        confidence: "low",
+        sources: usableEvidence,
+        latency_ms: Date.now() - started,
+        follow_up_queries: ["Try a narrower job, customer, file, or supplier name"],
+      };
+    }
     return {
       status: "unavailable",
       answer: `AI answer generation is unavailable (${normalized}). Search results and source evidence are still shown.`,
@@ -104,6 +114,21 @@ export async function answerOperationalQuery(
       follow_up_queries: [],
     };
   }
+}
+
+function buildEvidenceFallbackAnswer(reason: string, evidence: SearchEvidence[]) {
+  const topMatches = evidence
+    .slice(0, 3)
+    .map((source) => source.title)
+    .filter(Boolean);
+  if (topMatches.length === 0) {
+    return `The answer model could not return a structured response (${reason}), but indexed evidence was found.`;
+  }
+  return [
+    `The answer model could not return a structured response (${reason}), but indexed evidence was found.`,
+    `Top matches: ${topMatches.join("; ")}.`,
+    "Open the listed sources to verify the operational answer before relying on it.",
+  ].join(" ");
 }
 
 function skipped(answer: string, sources: SearchEvidence[], started: number): GroundedAiAnswer {

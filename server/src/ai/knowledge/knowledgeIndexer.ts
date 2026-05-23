@@ -21,9 +21,9 @@ import {
   upsertKnowledgeFile,
 } from "./chunkStorage";
 import { embedKnowledgeText } from "./embeddingGenerator";
-import { chunkKnowledgeText } from "./fileChunker";
 import { scanKnowledgeSource } from "./filesystemScanner";
 import { ensureKnowledgeChildPath } from "./knowledgePermissions";
+import { chunkKnowledgeTextForIndexing } from "./remoteChunker";
 import { isMetadataOnlyExtension, isOfficeDocumentExtension, isTextBasedExtension } from "./supportedFileTypes";
 
 export async function runKnowledgeSourceScan(sourceId: string) {
@@ -170,10 +170,11 @@ async function indexKnowledgeFile(fileId: string) {
   updateKnowledgeFileIndexStatus(file.id, { status: "pending", last_error: "" });
   try {
     const extracted = await extractKnowledgeFileContent(file);
-    const chunks = chunkKnowledgeText(extracted.text, {
+    const chunks = await chunkKnowledgeTextForIndexing(extracted.text, {
       chunkSize: getSourceChunkSize(file.source_id),
       chunkOverlap: getSourceChunkOverlap(file.source_id),
       sectionPath: extracted.section_path,
+      requestId: `knowledge_${file.id}`,
     });
 
     const embeddedChunks: Array<{

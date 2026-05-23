@@ -55,6 +55,7 @@ export default function UnifiedSearchBar({ clientMode = false }) {
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       setLoading(true);
       crmApi.ai.unifiedSearch({
@@ -65,6 +66,8 @@ export default function UnifiedSearchBar({ clientMode = false }) {
           pathname: location.pathname,
           client_mode: clientMode,
         },
+      }, {
+        signal: controller.signal,
       })
         .then((nextResponse) => {
           if (!cancelled) {
@@ -72,8 +75,9 @@ export default function UnifiedSearchBar({ clientMode = false }) {
             setActiveIndex(0);
           }
         })
-        .catch(() => {
+        .catch((error) => {
           if (!cancelled) {
+            if (String(error?.name || "") === "AbortError") return;
             setResponse({
               groups: {},
               suggestions: [],
@@ -90,10 +94,11 @@ export default function UnifiedSearchBar({ clientMode = false }) {
         .finally(() => {
           if (!cancelled) setLoading(false);
         });
-    }, 180);
+    }, 500);
 
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearTimeout(timeout);
     };
   }, [clientMode, location.pathname, query, recents]);

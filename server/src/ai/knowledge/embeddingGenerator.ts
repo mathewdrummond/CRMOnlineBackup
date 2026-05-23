@@ -1,4 +1,4 @@
-import { createDeterministicEmbedding, embedText } from "../embeddings/embeddingService";
+import { EMBEDDING_DIMENSIONS, createDeterministicEmbedding, embedText } from "../embeddings/embeddingService";
 import { logAiEvent } from "../aiLogger";
 import { getCachedEmbeddingByChunkHash } from "./chunkStorage";
 
@@ -23,12 +23,24 @@ export async function embedKnowledgeText(
   const chunkHash = String(options.chunkHash || "").trim();
   if (chunkHash) {
     const cached = getCachedEmbeddingByChunkHash(chunkHash);
-    if (cached && Array.isArray(cached.embedding) && cached.embedding.length > 0) {
+    if (
+      cached
+      && Array.isArray(cached.embedding)
+      && cached.embedding.length === EMBEDDING_DIMENSIONS
+      && Number(cached.dimensions || 0) === EMBEDDING_DIMENSIONS
+    ) {
       return {
         vector: cached.embedding,
         degraded: false,
         from_cache: true,
       };
+    }
+    if (cached && Array.isArray(cached.embedding) && cached.embedding.length > 0) {
+      logAiEvent("knowledge_embedding_cache_dimension_mismatch", {
+        chunk_hash: chunkHash,
+        cached_dimensions: Number(cached.dimensions || cached.embedding.length || 0),
+        expected_dimensions: EMBEDDING_DIMENSIONS,
+      }, "warn");
     }
   }
 

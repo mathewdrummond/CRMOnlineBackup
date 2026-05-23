@@ -1,0 +1,14 @@
+[Unit]
+Description=JoinerFlow AI chunking worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/joinerflow-ai-chunker
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -3,7 +3,7 @@ import { createAiRequestId, getAiConfig } from "../aiConfig";
 import { estimateTokens, logAiEvent } from "../aiLogger";
 import { AiServiceError } from "../aiTypes";
 
-export const EMBEDDING_DIMENSIONS = 128;
+export const EMBEDDING_DIMENSIONS = 768;
 
 type EmbeddingProvider = (text: string) => Promise<number[]>;
 

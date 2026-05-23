@@ -421,15 +421,19 @@ async function directTestAuthRequest(path, body) {
 
 async function request(path, options = {}) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const {
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    ...fetchOptions
+  } = options;
   const timeoutId = controller
-    ? globalThis.setTimeout(() => controller.abort(new Error("Request timeout")), REQUEST_TIMEOUT_MS)
+    ? globalThis.setTimeout(() => controller.abort(new Error("Request timeout")), timeoutMs)
     : null;
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       credentials: "include",
-      headers: buildRequestHeaders(options.headers || {}),
-      ...options,
-      signal: options.signal || controller?.signal,
+      headers: buildRequestHeaders(fetchOptions.headers || {}),
+      ...fetchOptions,
+      signal: fetchOptions.signal || controller?.signal,
     });
 
     if (timeoutId) {
@@ -1107,10 +1111,12 @@ export const crmApi = {
         body: JSON.stringify(data),
       });
     },
-    unifiedSearch(data) {
+    unifiedSearch(data, options = {}) {
       return request("/api/search/unified", {
         method: "POST",
         body: JSON.stringify(data),
+        timeoutMs: 120000,
+        ...options,
       });
     },
     knowledgeStatus() {
