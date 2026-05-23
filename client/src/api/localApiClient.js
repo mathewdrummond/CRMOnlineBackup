@@ -1107,6 +1107,12 @@ export const crmApi = {
         body: JSON.stringify(data),
       });
     },
+    unifiedSearch(data) {
+      return request("/api/search/unified", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
     knowledgeStatus() {
       return request("/api/ai/knowledge/status");
     },

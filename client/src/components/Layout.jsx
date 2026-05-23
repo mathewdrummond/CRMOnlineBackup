@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Outlet, Link, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { 
   LayoutDashboard, Users, Target, FileText, Briefcase, Calendar, Calculator,
   Clock, BarChart3, Menu, X, Search, WifiOff, BookOpen,
@@ -7,19 +7,15 @@ import {
 } from "lucide-react";
 import { crmApi } from "@/api/localApiClient";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/lib/AuthContext";
 import { useModules } from "@/lib/ModuleContext";
-import {
-  getLayoutSearchSnapshot,
-  loadLayoutSearchData,
-} from "@/lib/layoutData";
 import millbrookLogo from "@/assets/millbrook-logo.png";
 import millbrookNavTimber from "@/assets/millbrook-nav-timber.jpg";
 import ContextHelpActions from "@/components/help/ContextHelpActions";
 import GuidedTourDialog from "@/components/help/GuidedTourDialog";
 import OnboardingHint from "@/components/help/OnboardingHint";
+import UnifiedSearchBar from "@/components/search/UnifiedSearchBar";
 import { useClientMode } from "@/lib/clientMode.jsx";
 import { Switch } from "@/components/ui/switch";
 
@@ -73,145 +69,21 @@ const TIMECLOCK_NAV_SECTIONS = [
 ];
 
 export default function Layout() {
-  const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState(() => crmApi.apiStatus.getSnapshot());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchData, setSearchData] = useState({ jobs: [], quotes: [], contacts: [], leads: [], companies: [] });
-  const [semanticResults, setSemanticResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [semanticLoading, setSemanticLoading] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
   const mainRef = useRef(null);
   const { user, isAdmin, logout } = useAuth();
   const { isModuleEnabled } = useModules();
   const { clientMode, setClientMode } = useClientMode();
-  const leadsEnabled = isModuleEnabled("leads");
-  const quotesEnabled = isModuleEnabled("quotes");
-  const contactsEnabled = isModuleEnabled("contacts");
-  const suppliersEnabled = isModuleEnabled("suppliers");
   const navSections = APP_KIND === "timeclock" ? TIMECLOCK_NAV_SECTIONS : CRM_NAV_SECTIONS;
   const homePath = APP_KIND === "timeclock" ? "/time-tracking" : "/";
-  const searchDataOptions = useMemo(() => ({
-    contactsEnabled,
-    leadsEnabled,
-    quotesEnabled,
-    suppliersEnabled,
-  }), [contactsEnabled, leadsEnabled, quotesEnabled, suppliersEnabled]);
-  const shouldPrimeSearchData = searchFocused || searchQuery.trim().length >= 2;
 
   useEffect(() => {
     return crmApi.apiStatus.subscribe(setApiStatus);
   }, []);
 
   useEffect(() => {
-    if (APP_KIND === "timeclock" || !shouldPrimeSearchData) {
-      setSearchLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setSearchData(getLayoutSearchSnapshot(searchDataOptions));
-    setSearchLoading(true);
-
-    void loadLayoutSearchData(searchDataOptions)
-      .then((nextSearchData) => {
-        if (!cancelled) {
-          setSearchData(nextSearchData);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSearchLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [searchDataOptions, shouldPrimeSearchData]);
-
-  useEffect(() => {
-    const query = searchQuery.trim();
-    if (APP_KIND === "timeclock" || query.length < 3) {
-      setSemanticResults([]);
-      setSemanticLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timeout = window.setTimeout(() => {
-      setSemanticLoading(true);
-      if (!crmApi.ai?.search) {
-        setSemanticResults([]);
-        setSemanticLoading(false);
-        return;
-      }
-
-      void Promise.all([
-        crmApi.ai.search({
-          query,
-          entity_types: ["Job", "Quote", "Contact", "Company", "Note", "Attachment", "PricingItem"],
-          limit: 6,
-        }),
-        crmApi.ai.knowledgeSearch
-          ? crmApi.ai.knowledgeSearch({
-              query,
-              limit: 4,
-            })
-          : Promise.resolve({ results: [] }),
-      ])
-        .then(([semanticResponse, knowledgeResponse]) => {
-          if (!cancelled) {
-            const combined = [
-              ...(Array.isArray(semanticResponse?.results) ? semanticResponse.results : []),
-              ...(Array.isArray(knowledgeResponse?.results) ? knowledgeResponse.results.map((result) => {
-                const metadata = result?.metadata && typeof result.metadata === "object" ? result.metadata : {};
-                const entityType = String(metadata.entity_type || "").toLowerCase();
-                const entityId = String(metadata.entity_id || "");
-                const href = entityType === "job" && entityId
-                  ? `/jobs/${entityId}`
-                  : entityType === "quote" && entityId
-                    ? `/quotes/${entityId}`
-                    : entityType === "contact" && entityId
-                      ? `/contacts/${entityId}`
-                      : entityType === "company" && entityId
-                        ? `/companies/${entityId}`
-                        : "/admin/ai-knowledge";
-                return {
-                  ...result,
-                  entity: "Knowledge",
-                  title: result.source_reference ? `${result.source_reference}` : result.relative_path || "Knowledge file",
-                  snippet: result.snippet || result.chunk_text || "",
-                  href,
-                };
-              }) : []),
-            ];
-            setSemanticResults(combined);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setSemanticResults([]);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setSemanticLoading(false);
-          }
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [searchQuery]);
-
-  useEffect(() => {
-    setSearchQuery("");
-    setSearchFocused(false);
     setSidebarOpen(false);
     mainRef.current?.scrollTo({ top: 0, left: 0 });
   }, [location.pathname]);
@@ -219,140 +91,6 @@ export default function Layout() {
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
-  };
-
-  const searchResults = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (query.length < 2) {
-      return [];
-    }
-
-    const jobs = searchData.jobs
-      .filter((job) =>
-        `${job.job_number || ""} ${job.title || ""} ${job.contact_name || ""} ${job.company_name || ""}`
-          .toLowerCase()
-          .includes(query)
-      )
-      .slice(0, 4)
-      .map((job) => ({
-        id: `job-${job.id}`,
-        href: `/jobs/${job.id}`,
-        type: "Job",
-        title: `${job.job_number || "Job"}${job.title ? ` — ${job.title}` : ""}`,
-        subtitle: job.contact_name || job.company_name || "",
-      }));
-
-    const quotes = searchData.quotes
-      .filter((quote) =>
-        `${quote.quote_number || ""} ${quote.title || ""} ${quote.quote_option_name || ""} ${quote.version_status || ""} ${quote.contact_name || ""} ${quote.company_name || ""}`
-          .toLowerCase()
-          .includes(query)
-      )
-      .slice(0, 4)
-      .map((quote) => ({
-        id: `quote-${quote.id}`,
-        href: `/quotes/${quote.id}`,
-        type: "Quote",
-        title: `${quote.quote_number || "Quote"}${quote.title ? ` — ${quote.title}` : ""}`,
-        subtitle: [quote.quote_option_name, quote.contact_name || quote.company_name || ""].filter(Boolean).join(" · "),
-      }));
-
-    const contacts = searchData.contacts
-      .filter((contact) =>
-        `${contact.first_name || ""} ${contact.last_name || ""} ${contact.full_name || ""} ${contact.company_name || ""} ${contact.email || ""}`
-          .toLowerCase()
-          .includes(query)
-      )
-      .slice(0, 4)
-      .map((contact) => ({
-        id: `contact-${contact.id}`,
-        href: `/contacts/${contact.id}`,
-        type: "Contact",
-        title:
-          `${contact.first_name || ""} ${contact.last_name || ""}`.trim() ||
-          contact.full_name ||
-          contact.email ||
-          "Contact",
-        subtitle: contact.company_name || contact.email || "",
-      }));
-
-    const leads = searchData.leads
-      .filter((lead) =>
-        `${lead.title || ""} ${lead.contact_name || ""} ${lead.company_name || ""} ${lead.site_address || ""}`
-          .toLowerCase()
-          .includes(query)
-      )
-      .slice(0, 4)
-      .map((lead) => ({
-        id: `lead-${lead.id}`,
-        href: `/leads/${lead.id}`,
-        type: "Enquiry",
-        title: lead.title || "Lead",
-        subtitle: [lead.contact_name, lead.company_name].filter(Boolean).join(" · "),
-      }));
-
-    const companies = searchData.companies
-      .filter((company) =>
-        `${company.name || ""} ${company.email || ""} ${company.phone || ""}`
-          .toLowerCase()
-          .includes(query)
-      )
-      .slice(0, 4)
-      .map((company) => ({
-        id: `company-${company.id}`,
-        href: `/companies/${company.id}`,
-        type: "Company",
-        title: company.name || "Company",
-        subtitle: company.email || company.phone || "",
-      }));
-
-    const semantic = semanticResults
-      .filter((result) => result.href)
-      .map((result) => ({
-        id: `semantic-${result.entity}-${result.record_id}`,
-        href: result.href,
-        type: result.entity,
-        title: result.title || result.entity,
-        subtitle: result.snippet || "",
-      }));
-
-    const visibleResults = [
-      ...semantic,
-      ...jobs,
-      ...(quotesEnabled ? quotes : []),
-      ...(contactsEnabled ? contacts : []),
-      ...(leadsEnabled ? leads : []),
-      ...((contactsEnabled || suppliersEnabled) ? companies : []),
-    ];
-
-    const seen = new Set();
-    return visibleResults
-      .filter((result) => {
-        const key = result.href || result.id;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 10);
-  }, [contactsEnabled, leadsEnabled, quotesEnabled, searchData.companies, searchData.contacts, searchData.jobs, searchData.leads, searchData.quotes, searchQuery, semanticResults, suppliersEnabled]);
-
-  const showSearchResults = searchFocused && searchQuery.trim().length >= 2;
-
-  const openSearchResult = (href) => {
-    setSearchQuery("");
-    setSearchFocused(false);
-    navigate(href);
-  };
-
-  const handleSearchKeyDown = (event) => {
-    if (event.key === "Enter" && searchResults.length > 0) {
-      event.preventDefault();
-      openSearchResult(searchResults[0].href);
-    }
-
-    if (event.key === "Escape") {
-      setSearchFocused(false);
-    }
   };
 
   return (
@@ -498,47 +236,7 @@ export default function Layout() {
               <Menu className="h-5 w-5" />
             </button>
             {APP_KIND !== "timeclock" ? (
-              <div className="jf-global-search relative hidden md:flex">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search jobs, enquiries, contacts, companies..."
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="h-9 w-[min(30rem,calc(100vw-10rem))] rounded-full border-border/50 bg-white/65 pl-10 pr-4 text-xs shadow-sm focus-visible:bg-card lg:w-80 xl:w-[24rem]"
-                />
-                {showSearchResults && (
-                  <div className="absolute left-0 top-[calc(100%+0.65rem)] z-50 w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border/70 bg-popover shadow-jf-overlay">
-                    {searchLoading || semanticLoading ? (
-                      <div className="px-4 py-4 text-sm text-muted-foreground">Loading search index...</div>
-                    ) : searchResults.length > 0 ? (
-                      <div className="py-2">
-                        {searchResults.map((result) => (
-                          <button
-                            key={result.id}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => openSearchResult(result.href)}
-                            className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-muted/55"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{result.title}</p>
-                              {result.subtitle && <p className="text-xs text-muted-foreground truncate mt-0.5">{result.subtitle}</p>}
-                            </div>
-                            <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-secondary-foreground">
-                              {result.type}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-4 text-sm text-muted-foreground">No matching jobs, enquiries, quotes, contacts, or companies.</div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <UnifiedSearchBar clientMode={clientMode} />
             ) : (
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">Time Clock</p>

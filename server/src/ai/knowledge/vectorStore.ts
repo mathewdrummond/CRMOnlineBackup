@@ -41,7 +41,7 @@ export async function searchKnowledgeVectors(input: {
           source_id: String(row.payload.source_id || ""),
           file_id: String(row.payload.file_id || ""),
           relative_path: String(row.payload.relative_path || ""),
-          chunk_id: String(row.id || ""),
+          chunk_id: String(row.payload.id || row.id || ""),
           chunk_text: String(row.payload.chunk_text || ""),
           score: round(Number(row.score || 0)),
           semantic_score: round(Number(row.score || 0)),

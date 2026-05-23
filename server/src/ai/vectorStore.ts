@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { logAiEvent } from "./aiLogger";
 
 type QdrantPoint = {
@@ -206,17 +207,27 @@ export async function searchEntityVectorsInQdrant(input: {
 }
 
 async function createCollectionIfMissing(collection: string, dimensions: number) {
-  const config = getVectorStoreConfig();
   const payload = {
     vectors: {
       size: Math.max(1, Number(dimensions || 768)),
       distance: "Cosine",
     },
   };
-  await qdrantRequest(`/collections/${encodeURIComponent(collection)}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  try {
+    await qdrantRequest(`/collections/${encodeURIComponent(collection)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("409 Conflict") && message.includes("already exists")) {
+      latestError = "";
+      failureStreak = 0;
+      nextRetryDate = 0;
+      return;
+    }
+    throw error;
+  }
 }
 
 async function upsertPoints(collection: string, points: QdrantPoint[]) {
@@ -224,7 +235,7 @@ async function upsertPoints(collection: string, points: QdrantPoint[]) {
     method: "PUT",
     body: JSON.stringify({
       points: points.map((point) => ({
-        id: point.id,
+        id: toQdrantPointId(point.id),
         vector: point.vector,
         payload: point.payload,
       })),
@@ -236,7 +247,7 @@ async function deletePoints(collection: string, ids: string[]) {
   await qdrantRequest(`/collections/${encodeURIComponent(collection)}/points/delete?wait=false`, {
     method: "POST",
     body: JSON.stringify({
-      points: ids,
+      points: ids.map(toQdrantPointId),
     }),
   });
 }
@@ -476,4 +487,14 @@ export function stopVectorSyncQueue() {
 function buildBulkKey(ids: string[]) {
   const sorted = [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))].sort();
   return sorted.join("|");
+}
+
+function toQdrantPointId(id: string) {
+  const normalized = String(id || "").trim();
+  if (/^[0-9]+$/.test(normalized)) return normalized;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    return normalized;
+  }
+  const hex = crypto.createHash("sha1").update(normalized).digest("hex").slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }

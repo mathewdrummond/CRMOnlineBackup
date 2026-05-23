@@ -28,6 +28,8 @@ import {
 import { browseKnowledgeFolders, listKnowledgeBrowserRoots } from "../ai/knowledge/folderBrowser";
 import { ensureKnowledgePathAllowed } from "../ai/knowledge/knowledgePermissions";
 import { knowledgeSearchSchema, searchKnowledge } from "../ai/knowledge/retrievalEngine";
+import { runUnifiedSearch } from "../search/unifiedSearch";
+import { unifiedSearchSchema } from "../search/searchContext";
 import {
   getQuoteInsights,
   getQuoteRiskAnalysis,
@@ -212,6 +214,19 @@ export function registerAiRoutes(app: Express, context: AiRouteRegistrationConte
         ...result,
         index: getIndexStats(),
       });
+    } catch (error) {
+      context.handleRouteError(error, res);
+    }
+  });
+
+  app.post("/api/search/unified", async (req: Request, res: Response) => {
+    try {
+      if (!context.enforceAiRateLimit(req, res)) return;
+      context.requireJsonMutation(req);
+      const user = context.requireAuthenticatedApiUser(req);
+      const body = context.parseBodyWithSchema(req.body, unifiedSearchSchema);
+      const requestId = String(res.getHeader(context.requestIdHeader) || "");
+      res.json(await runUnifiedSearch(body, { user, requestId }));
     } catch (error) {
       context.handleRouteError(error, res);
     }

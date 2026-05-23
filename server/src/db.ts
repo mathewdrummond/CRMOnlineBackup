@@ -930,6 +930,13 @@ const ENTITY_DEFAULTS: Record<string, EntityData> = {
     anchor_offset_days: 0,
     explicit_duration_days: 0,
   },
+  UnifiedSearchDiagnostic: {
+    query: "",
+    intent: "entity_search",
+    answer_status: "skipped",
+    diagnostics: {},
+    pathname: "",
+  },
 };
 
 const DANGEROUS_KEYS = new Set(["__proto__", "prototype", "constructor"]);
