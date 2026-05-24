@@ -18,9 +18,6 @@ declare -a dirs=(
   "${JOINERFLOW_INSTALL_ROOT}/filesystem"
   "${JOINERFLOW_INSTALL_ROOT}/backups"
   "${JOINERFLOW_INSTALL_ROOT}/logs"
-  "${JOINERFLOW_INSTALL_ROOT}/ai"
-  "${JOINERFLOW_INSTALL_ROOT}/ai/models"
-  "${JOINERFLOW_INSTALL_ROOT}/ai/open-webui"
   "${JOINERFLOW_INSTALL_ROOT}/embeddings"
   "${JOINERFLOW_INSTALL_ROOT}/imports"
   "${JOINERFLOW_INSTALL_ROOT}/temp"
@@ -29,8 +26,20 @@ declare -a dirs=(
   "${JOINERFLOW_INSTALL_ROOT}/diagnostics/caddy/data"
   "${JOINERFLOW_INSTALL_ROOT}/diagnostics/caddy/config"
   "/volume1/docker/postgres"
-  "/volume1/vector-data/qdrant"
 )
+
+if is_true "${AI_ENABLED:-true}"; then
+  if uses_local_ollama || is_true "${JOINERFLOW_ENABLE_OPEN_WEBUI:-false}"; then
+    dirs+=(
+      "${JOINERFLOW_INSTALL_ROOT}/ai"
+      "${JOINERFLOW_INSTALL_ROOT}/ai/models"
+      "${JOINERFLOW_INSTALL_ROOT}/ai/open-webui"
+    )
+  fi
+  if uses_local_qdrant; then
+    dirs+=("/volume1/vector-data/qdrant")
+  fi
+fi
 
 for dir in "${dirs[@]}"; do
   mkdir -p "$dir"

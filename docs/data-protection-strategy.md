@@ -65,7 +65,7 @@ Recommended production layout:
 
 - Put `SQLITE_PATH` on the application data disk.
 - Keep the PostgreSQL data volume under the deployment's configured Docker data path when PostgreSQL shadow or primary mode is enabled.
-- Keep Qdrant vector data and Ollama models in the Synology runtime data paths when local AI is enabled.
+- Keep Qdrant vector data and Ollama models on the AI stack when remote AI is enabled. If the legacy NAS-local AI fallback is enabled, keep those paths in the Synology runtime data layout and include them in local backups.
 - Put `BACKUP_ROOT` on a different physical disk, NAS share, or synced backup location.
 - Copy at least one backup set off the machine each day.
 - Keep at least one known-good pre-go-live snapshot permanently.

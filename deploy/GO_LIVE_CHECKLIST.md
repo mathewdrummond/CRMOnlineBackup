@@ -17,7 +17,7 @@
 - `AUTH_SECURE_COOKIE=true`
 - `TRUST_PROXY=true` when behind a reverse proxy
 - `GOOGLE_CLIENT_ID` is configured and is the current production credential
-- the Google Cloud OAuth app includes the exact production CRM origin such as `https://crm.example.com` as an Authorized JavaScript origin
+- the Google Cloud OAuth app includes the exact production CRM origin `https://crm.millbrookfurniture.co.nz` as an Authorized JavaScript origin
 - `PUBLIC_API_ORIGIN` is configured
 - `ALLOWED_HOSTS` is configured
 - `CORS_ORIGIN` is configured

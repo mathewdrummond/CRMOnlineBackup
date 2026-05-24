@@ -15,6 +15,12 @@ if ! is_true "${AI_ENABLED:-true}"; then
   exit 0
 fi
 
+if ! uses_local_ollama; then
+  log_warn "Ollama endpoint is remote (${OLLAMA_BASE_URL}); skipping NAS-local model installation."
+  log_warn "Install or verify models on the AI host/container stack instead."
+  exit 0
+fi
+
 models=(
   "${OLLAMA_PRIMARY_MODEL:-gemma3:4b}"
   "${OLLAMA_FAST_MODEL:-phi4-mini:latest}"

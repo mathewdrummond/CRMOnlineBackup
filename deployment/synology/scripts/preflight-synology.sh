@@ -126,7 +126,11 @@ check_port_free "${JOINERFLOW_PROXY_HTTPS_PORT:-443}" "HTTPS port"
 check_port_free "${JOINERFLOW_SERVER_PORT:-4000}" "API diagnostics port"
 check_port_free "${JOINERFLOW_POSTGRES_PORT:-5432}" "PostgreSQL port"
 if is_true "${AI_ENABLED:-true}"; then
-  check_port_free "${JOINERFLOW_QDRANT_PORT:-6333}" "Qdrant port"
+  if uses_local_qdrant; then
+    check_port_free "${JOINERFLOW_QDRANT_PORT:-6333}" "Qdrant port"
+  else
+    pass "Qdrant port" "remote endpoint configured; no local port required"
+  fi
 fi
 if is_true "${JOINERFLOW_ENABLE_OPEN_WEBUI:-false}"; then
   check_port_free "${JOINERFLOW_OPEN_WEBUI_PORT:-3001}" "Open WebUI port"
@@ -141,7 +145,12 @@ for path_key in JOINERFLOW_INSTALL_ROOT; do
   fi
 done
 
-for subdir in app server client clock-client filesystem backups logs ai ai/models ai/open-webui embeddings imports temp diagnostics; do
+subdirs=(app server client clock-client filesystem backups logs embeddings imports temp diagnostics)
+if is_true "${AI_ENABLED:-true}" && { uses_local_ollama || is_true "${JOINERFLOW_ENABLE_OPEN_WEBUI:-false}"; }; then
+  subdirs+=(ai ai/models ai/open-webui)
+fi
+
+for subdir in "${subdirs[@]}"; do
   target="${JOINERFLOW_INSTALL_ROOT}/${subdir}"
   mkdir -p "$target" 2>/dev/null || true
   if [ -d "$target" ] && [ -w "$target" ]; then
@@ -200,7 +209,7 @@ if is_true "${AI_ENABLED:-true}" && [ -n "${OLLAMA_BASE_URL:-}" ]; then
   if printf '%s' "$OLLAMA_BASE_URL" | grep -Eq '^https?://'; then
     pass "Ollama endpoint format" "$OLLAMA_BASE_URL"
   else
-    fail "Ollama endpoint format" "$OLLAMA_BASE_URL" "Set OLLAMA_BASE_URL to http://ollama:11434 or equivalent."
+    fail "Ollama endpoint format" "$OLLAMA_BASE_URL" "Set OLLAMA_BASE_URL to http://ai.millbrook:11434, http://ollama:11434, or another valid HTTP(S) endpoint."
   fi
 fi
 
@@ -208,7 +217,7 @@ if is_true "${AI_ENABLED:-true}" && [ -n "${QDRANT_URL:-}" ]; then
   if printf '%s' "$QDRANT_URL" | grep -Eq '^https?://'; then
     pass "Qdrant endpoint format" "$QDRANT_URL"
   else
-    fail "Qdrant endpoint format" "$QDRANT_URL" "Set QDRANT_URL to http://qdrant:6333 or equivalent."
+    fail "Qdrant endpoint format" "$QDRANT_URL" "Set QDRANT_URL to http://ai.millbrook:6333, http://qdrant:6333, or another valid HTTP(S) endpoint."
   fi
 fi
 

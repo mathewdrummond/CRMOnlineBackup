@@ -1,6 +1,6 @@
 # Production AI Hardening
 
-JoinerFlow AI features can be disabled with `AI_ENABLED=false`. Production currently runs local Ollama and Qdrant services, but document drafts, import suggestions, operational risks, and labour warnings remain advisory outputs; they do not send documents, approve quotes, mutate workflow states, or modify financial totals.
+JoinerFlow AI features can be disabled with `AI_ENABLED=false`. Target production uses a Proxmox-hosted AI stack for Ollama, Qdrant, and chunking, while document drafts, import suggestions, operational risks, and labour warnings remain advisory outputs; they do not send documents, approve quotes, mutate workflow states, or modify financial totals.
 
 ## Runtime Safety
 
@@ -46,7 +46,7 @@ npm run build:release
 npm run preflight:prod
 ```
 
-Environment-specific failures in `preflight:prod` should be treated separately from code regressions. On Synology/DS225+, expected checks include volume paths, production ports, Docker Compose validation, and Ollama availability.
+Environment-specific failures in `preflight:prod` should be treated separately from code regressions. On Synology, expected checks include volume paths, production ports, Docker Compose validation, and remote AI endpoint availability when AI is enabled.
 
 On the production NAS, also run:
 

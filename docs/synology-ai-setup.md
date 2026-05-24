@@ -1,13 +1,14 @@
-# Synology AI Setup (Ollama + JoinerFlow)
+# AI Setup (Remote AI Stack + JoinerFlow)
 
 ## Objective
 
-Configure local AI inference for JoinerFlow on Synology with CPU-friendly settings and deterministic safety controls.
+Configure local AI inference for JoinerFlow with the intended remote AI VM/container stack and deterministic safety controls. The older Synology-local Ollama/Qdrant path remains a fallback only.
 
 ## AI Runtime Components
 
-- `ollama` container for local model serving.
-- `qdrant` container for semantic vector retrieval.
+- `ollama` service for local model serving on the AI stack.
+- `qdrant` service for semantic vector retrieval on the AI stack.
+- `joinerflow-ai-chunker.service` for deterministic chunking offload.
 - JoinerFlow AI endpoints (`/api/ai/health`, `/api/ai/search`, similar entity APIs).
 - SQLite-backed deterministic fallback plus Qdrant-backed semantic search.
 
@@ -25,37 +26,50 @@ Edit `deployment/synology/env/.env.ai`:
 
 ```env
 AI_ENABLED=true
-OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_BASE_URL=http://ai.millbrook:11434
 OLLAMA_PRIMARY_MODEL=gemma3:4b
 OLLAMA_FAST_MODEL=phi4-mini:latest
 OLLAMA_EMBED_MODEL=nomic-embed-text:latest
-QDRANT_URL=http://qdrant:6333
+QDRANT_URL=http://ai.millbrook:6333
 QDRANT_COLLECTION_ENTITIES=entity_embeddings
 QDRANT_COLLECTION_KNOWLEDGE=knowledge_chunks
-QDRANT_REQUEST_TIMEOUT_MS=3000
-AI_REQUEST_TIMEOUT_MS=45000
+QDRANT_REQUEST_TIMEOUT_MS=8000
+AI_CHUNKER_URL=http://ai.millbrook:8088
+AI_CHUNKER_TIMEOUT_MS=30000
+AI_REQUEST_TIMEOUT_MS=90000
 AI_REQUEST_RETRIES=1
-AI_RATE_LIMIT_MAX=8
+AI_RATE_LIMIT_MAX=60
 AI_RATE_LIMIT_WINDOW_MS=60000
 AI_VECTOR_QUEUE_MAX=5000
 AI_EMBED_QUEUE_MAX=5000
 AI_EMBED_QUEUE_DELAY_MS=800
 AI_KNOWLEDGE_QUEUE_MAX=15000
 OLLAMA_NUM_PARALLEL=1
-OLLAMA_MAX_LOADED_MODELS=1
-OLLAMA_KEEP_ALIVE=10m
+OLLAMA_MAX_LOADED_MODELS=2
+OLLAMA_KEEP_ALIVE=24h
 ```
 
-These limits keep CPU inference predictable. Production currently caps the Ollama container at 8192 MB, which is enough for the listed model set on the upgraded NAS.
+These limits keep CPU inference predictable. The target AI allocation is 10 GB dedicated to the AI VM/container stack. The exact AI host IP and storage paths REQUIRES VALIDATION after the Proxmox `PVE` target address is in service.
 
 AI knowledge indexing can browse the configured upload/import roots and valid Synology shared folders discovered under `/volume1/*`. The server canonicalizes paths, blocks traversal and symlink escapes, hides system/hidden mounts, and only exposes directories readable by the container.
 
 ## Install and Validate Models
 
+On the AI host, install the required models:
+
 ```bash
-sudo ./deployment/synology/scripts/install-ollama-models.sh
+ollama pull gemma3:4b
+ollama pull phi4-mini:latest
+ollama pull nomic-embed-text:latest
+```
+
+From the NAS/app host, validate the configured endpoints:
+
+```bash
 sudo ./deployment/synology/scripts/check-ai.sh
 ```
+
+The NAS `install-ollama-models.sh` script is only for the legacy NAS-local Ollama fallback. It skips model installation when `OLLAMA_BASE_URL` points at a remote AI endpoint.
 
 Validation includes:
 
@@ -77,14 +91,14 @@ Validation includes:
 
 ## Model Maintenance
 
-Update model tags in `env/.env.ai`, then run:
+Update model tags in `env/.env.ai`, install them on the AI host, then run:
 
 ```bash
-sudo ./deployment/synology/scripts/install-ollama-models.sh
 sudo ./deployment/synology/restart-joinerflow-synology.sh
+sudo ./deployment/synology/scripts/check-ai.sh
 ```
 
-If storage pressure is high, remove old model blobs from:
+If using the legacy NAS-local fallback and storage pressure is high, remove old model blobs from:
 
 ```text
 /volume1/joinerflow/ai/models

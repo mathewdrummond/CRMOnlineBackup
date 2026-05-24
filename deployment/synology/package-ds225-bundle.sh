@@ -8,7 +8,7 @@ SCRIPTS_DIR="${SCRIPT_DIR}/scripts"
 . "${SCRIPTS_DIR}/lib/common.sh"
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
-bundle_name="joinerflow-ds225-${timestamp}"
+bundle_name="joinerflow-synology-${timestamp}"
 release_dir="${REPO_ROOT}/release"
 stage_dir="${release_dir}/${bundle_name}"
 zip_path="${release_dir}/${bundle_name}.zip"
@@ -16,7 +16,7 @@ zip_path="${release_dir}/${bundle_name}.zip"
 mkdir -p "${release_dir}"
 rm -rf "${stage_dir}" "${zip_path}"
 
-log_info "Staging DS225+ release bundle at ${stage_dir}."
+log_info "Staging Synology release bundle at ${stage_dir}."
 rsync -a \
   --exclude '.git/' \
   --exclude '.joinerflow-runtime/' \

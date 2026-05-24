@@ -12,11 +12,11 @@ services:
       - ../env/.env.ai
     environment:
       TZ: ${TZ:-Pacific/Auckland}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://192.168.1.40:11434}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ai.millbrook:11434}
       DATABASE_DRIVER: ${DATABASE_DRIVER:-sqlite}
       DATABASE_SHADOW_WRITE: ${DATABASE_SHADOW_WRITE:-true}
       DATABASE_URL: ${DATABASE_URL:-postgresql://joinerflow:${POSTGRES_PASSWORD:-joinerflow}@postgres:5432/joinerflow}
-      QDRANT_URL: ${QDRANT_URL:-http://192.168.1.40:6333}
+      QDRANT_URL: ${QDRANT_URL:-http://ai.millbrook:6333}
       QDRANT_COLLECTION_ENTITIES: ${QDRANT_COLLECTION_ENTITIES:-entity_embeddings}
       QDRANT_COLLECTION_KNOWLEDGE: ${QDRANT_COLLECTION_KNOWLEDGE:-knowledge_chunks}
       QDRANT_REQUEST_TIMEOUT_MS: ${QDRANT_REQUEST_TIMEOUT_MS:-3000}
@@ -210,7 +210,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8192M
+          memory: 10240M
           pids: 256
         reservations:
           memory: 2048M

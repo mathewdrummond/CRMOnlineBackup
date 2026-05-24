@@ -117,8 +117,7 @@ This audit records the production-readiness pass for JoinerFlow before Millbrook
 - Backups: `BACKUP_ROOT`, production example `/volume1/joinerflow/backups`.
 - Logs: `LOG_DIRECTORY`, production example `/volume1/joinerflow/logs`.
 - AI knowledge roots: `AI_KNOWLEDGE_ALLOWED_ROOTS` plus dynamically discovered valid Synology shared folders under `/volume1/*`; production keeps app-owned roots such as `/volume1/joinerflow/filesystem,/volume1/joinerflow/imports`.
-- Ollama models: `/volume1/joinerflow/ai/models`.
-- Qdrant: `/volume1/vector-data/qdrant`.
+- Historical NAS-local AI paths: Ollama models at `/volume1/joinerflow/ai/models` and Qdrant at `/volume1/vector-data/qdrant`. Target production moves AI storage to the AI stack; exact remote paths REQUIRES VALIDATION.
 - PostgreSQL data: `/volume1/docker/postgres`.
 
 ### Auth And Security Inventory

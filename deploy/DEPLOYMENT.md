@@ -89,13 +89,13 @@ AUTH_SESSION_SECRET=replace-with-a-long-random-secret
 AUTH_SESSION_TTL_HOURS=12
 # Use the current GOOGLE_CLIENT_ID as the production credential too.
 # Configure the exact CRM production origin as an Authorized JavaScript origin in Google Cloud.
-# Example: https://crm.example.com (no path).
+# Example: https://crm.millbrookfurniture.co.nz (no path).
 # This app does not use GOOGLE_CLIENT_SECRET or OAuth redirect URIs for CRM sign-in.
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 AUTH_BOOTSTRAP_ADMIN_EMAILS=owner@example.com
-PUBLIC_API_ORIGIN=https://crm.example.com
-ALLOWED_HOSTS=crm.example.com,clock.example.com
-CORS_ORIGIN=https://crm.example.com,https://clock.example.com
+PUBLIC_API_ORIGIN=https://crm.millbrookfurniture.co.nz
+ALLOWED_HOSTS=crm.millbrookfurniture.co.nz,joinerflow.local,clock.joinerflow.local
+CORS_ORIGIN=https://crm.millbrookfurniture.co.nz,https://joinerflow.local,https://clock.joinerflow.local
 TIMECLOCK_KIOSK_KEY=replace-with-a-long-random-secret
 # Set these explicitly for production so the service never reuses stale local dev data paths by accident.
 SQLITE_PATH=/srv/joinerflow/data/joinerflow.sqlite

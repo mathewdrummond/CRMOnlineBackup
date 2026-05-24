@@ -44,9 +44,9 @@ Set these in `server/.env.local` or the process environment:
 NODE_ENV=production
 HOST=127.0.0.1
 PORT=4000
-PUBLIC_API_ORIGIN=https://crm.example.com
-CORS_ORIGIN=https://crm.example.com
-ALLOWED_HOSTS=crm.example.com
+PUBLIC_API_ORIGIN=https://crm.millbrookfurniture.co.nz
+CORS_ORIGIN=https://crm.millbrookfurniture.co.nz,https://joinerflow.local,https://clock.joinerflow.local
+ALLOWED_HOSTS=crm.millbrookfurniture.co.nz,joinerflow.local,clock.joinerflow.local
 GOOGLE_CLIENT_ID=your-web-client.apps.googleusercontent.com
 AUTH_BOOTSTRAP_ADMIN_EMAILS=owner@example.com
 AUTH_SESSION_SECRET=at-least-32-characters
@@ -63,9 +63,10 @@ Use explicit production paths. Do not rely on repository default paths for live 
 
 ## Health Checks
 
-- Backend: `https://crm.example.com/health`
-- CRM login: `https://crm.example.com/login`
-- Time clock, if published separately: `https://clock.example.com`
+- Backend: `https://crm.millbrookfurniture.co.nz/health`
+- CRM login: `https://crm.millbrookfurniture.co.nz/login`
+- Local CRM alias: `https://joinerflow.local`
+- Time clock: `https://clock.joinerflow.local`
 - Local backend when reverse-proxied: `http://127.0.0.1:4000/health`
 
 ## Synology NAS Install

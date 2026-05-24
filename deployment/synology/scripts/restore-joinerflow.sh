@@ -21,7 +21,16 @@ fi
 
 required_components=(filesystem embeddings imports docker diagnostics manifest.env)
 if is_true "${AI_ENABLED:-true}"; then
-  required_components+=(vector-db ai)
+  if uses_local_qdrant; then
+    required_components+=(vector-db)
+  else
+    log_warn "Qdrant endpoint is remote (${QDRANT_URL}); restore will not require or restore NAS vector-db data."
+  fi
+  if uses_local_ollama; then
+    required_components+=(ai)
+  else
+    log_warn "Ollama endpoint is remote (${OLLAMA_BASE_URL}); restore will not require or restore NAS AI model data."
+  fi
 fi
 
 for required in "${required_components[@]}"; do
@@ -84,8 +93,12 @@ fi
 restore_dir "${snapshot_path}/filesystem" "${FILESYSTEM_ROOT}"
 restore_dir "${snapshot_path}/embeddings" "${JOINERFLOW_INSTALL_ROOT}/embeddings"
 if is_true "${AI_ENABLED:-true}"; then
-  restore_dir "${snapshot_path}/vector-db/qdrant" "/volume1/vector-data/qdrant"
-  restore_dir "${snapshot_path}/ai" "${JOINERFLOW_INSTALL_ROOT}/ai"
+  if uses_local_qdrant; then
+    restore_dir "${snapshot_path}/vector-db/qdrant" "/volume1/vector-data/qdrant"
+  fi
+  if uses_local_ollama; then
+    restore_dir "${snapshot_path}/ai" "${JOINERFLOW_INSTALL_ROOT}/ai"
+  fi
 fi
 restore_dir "${snapshot_path}/imports" "${JOINERFLOW_INSTALL_ROOT}/imports"
 restore_dir "${snapshot_path}/diagnostics" "${JOINERFLOW_INSTALL_ROOT}/diagnostics"

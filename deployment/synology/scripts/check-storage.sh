@@ -23,7 +23,12 @@ if [ "$database_driver" = "postgres" ]; then
   paths+=("/volume1/docker/postgres")
 fi
 if is_true "${AI_ENABLED:-true}"; then
-  paths+=("/volume1/vector-data/qdrant" "${JOINERFLOW_INSTALL_ROOT}/ai")
+  if uses_local_qdrant; then
+    paths+=("/volume1/vector-data/qdrant")
+  fi
+  if uses_local_ollama; then
+    paths+=("${JOINERFLOW_INSTALL_ROOT}/ai")
+  fi
 fi
 
 log_info "Filesystem capacity"

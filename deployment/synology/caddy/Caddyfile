@@ -1,14 +1,14 @@
-http://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local} {
+http://{$JOINERFLOW_PUBLIC_HOST:crm.millbrookfurniture.co.nz}, http://joinerflow.local {
   handle /caddy-health {
     respond "ok" 200
   }
 
   handle {
-    redir https://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local}{uri}
+    redir https://{host}{uri}
   }
 }
 
-https://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local} {
+https://{$JOINERFLOW_PUBLIC_HOST:crm.millbrookfurniture.co.nz}, https://joinerflow.local {
   tls internal
   encode gzip zstd
   request_body {
@@ -40,17 +40,17 @@ https://{$JOINERFLOW_PUBLIC_HOST:joinerflow.local} {
   }
 }
 
-http://timeclock.millbrookfurniture.co.nz {
+http://clock.joinerflow.local, http://timeclock.millbrookfurniture.co.nz {
   handle /caddy-health {
     respond "ok" 200
   }
 
   handle {
-    redir https://timeclock.millbrookfurniture.co.nz{uri}
+    redir https://{host}{uri}
   }
 }
 
-https://timeclock.millbrookfurniture.co.nz {
+https://clock.joinerflow.local, https://timeclock.millbrookfurniture.co.nz {
   tls internal
   encode gzip zstd
 

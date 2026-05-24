@@ -14,10 +14,10 @@ log_info "Starting JoinerFlow core containers."
 core_services=(postgres joinerflow-server joinerflow-client joinerflow-clock-client caddy)
 if is_true "${AI_ENABLED:-true}"; then
   ai_services=()
-  if [ "${OLLAMA_BASE_URL:-http://ollama:11434}" = "http://ollama:11434" ]; then
+  if uses_local_ollama; then
     ai_services+=(ollama)
   fi
-  if [ "${QDRANT_URL:-http://qdrant:6333}" = "http://qdrant:6333" ]; then
+  if uses_local_qdrant; then
     ai_services+=(qdrant)
   fi
   if [ "${#ai_services[@]}" -gt 0 ]; then

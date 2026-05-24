@@ -145,6 +145,24 @@ is_true() {
   esac
 }
 
+uses_local_ollama() {
+  case "${OLLAMA_BASE_URL:-http://ollama:11434}" in
+    http://ollama:11434|http://127.0.0.1:*|http://localhost:*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+uses_local_qdrant() {
+  case "${QDRANT_URL:-http://qdrant:6333}" in
+    http://qdrant:6333|http://127.0.0.1:*|http://localhost:*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+uses_local_ai_storage() {
+  uses_local_ollama || uses_local_qdrant
+}
+
 validate_absolute_csv_paths() {
   local key="$1"
   local value="${!key:-}"

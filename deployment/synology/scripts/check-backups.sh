@@ -26,7 +26,16 @@ log_info "Latest backup: ${latest}"
 database_driver="$(printf '%s' "${DATABASE_DRIVER:-sqlite}" | tr '[:upper:]' '[:lower:]')"
 required_components=(manifest.env filesystem embeddings imports docker diagnostics)
 if is_true "${AI_ENABLED:-true}"; then
-  required_components+=(vector-db ai)
+  if uses_local_qdrant; then
+    required_components+=(vector-db)
+  else
+    log_warn "Qdrant endpoint is remote (${QDRANT_URL}); latest NAS snapshot is not expected to contain vector-db."
+  fi
+  if uses_local_ollama; then
+    required_components+=(ai)
+  else
+    log_warn "Ollama endpoint is remote (${OLLAMA_BASE_URL}); latest NAS snapshot is not expected to contain AI model storage."
+  fi
 fi
 
 for required in "${required_components[@]}"; do

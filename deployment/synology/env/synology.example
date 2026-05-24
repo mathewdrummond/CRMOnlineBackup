@@ -1,8 +1,8 @@
 JOINERFLOW_PROJECT_NAME=joinerflow
 JOINERFLOW_INSTALL_ROOT=/volume1/joinerflow
-JOINERFLOW_PUBLIC_HOST=crm.example.com
-JOINERFLOW_PUBLIC_ORIGIN=https://crm.example.com
-JOINERFLOW_TIMECLOCK_ORIGIN=https://timeclock.example.com
+JOINERFLOW_PUBLIC_HOST=crm.millbrookfurniture.co.nz
+JOINERFLOW_PUBLIC_ORIGIN=https://crm.millbrookfurniture.co.nz
+JOINERFLOW_TIMECLOCK_ORIGIN=https://clock.joinerflow.local
 TZ=Pacific/Auckland
 
 JOINERFLOW_PROXY_HTTP_PORT=8080
@@ -18,4 +18,3 @@ JOINERFLOW_OPEN_WEBUI_PORT=3001
 
 JOINERFLOW_PUID=1026
 JOINERFLOW_PGID=100
-

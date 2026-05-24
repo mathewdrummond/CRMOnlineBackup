@@ -1,16 +1,16 @@
-# JoinerFlow Synology DS225+ Installation Guide
+# JoinerFlow Synology Installation Guide
 
 ## Scope
 
-This guide installs JoinerFlow as a Docker stack on Synology DSM 7.2+ with:
+This guide installs the JoinerFlow application stack on Synology DSM 7.2+. The intended production architecture uses the NAS for application runtime data and backups, while AI services run on a Proxmox-hosted AI stack.
 
 - `joinerflow-server`
 - `joinerflow-client`
 - `joinerflow-clock-client`
 - `postgres`
-- `qdrant`
-- `ollama`
 - `caddy` reverse proxy
+
+The compose file still contains `qdrant` and `ollama` services for legacy NAS-local fallback. Production should use remote AI endpoints unless the architecture is deliberately collapsed onto the NAS.
 
 Optional Open WebUI is defined separately in `deployment/synology/docker/docker-compose.ai.yml`.
 
@@ -21,11 +21,12 @@ Optional Open WebUI is defined separately in `deployment/synology/docker/docker-
 3. SSH enabled on NAS.
 4. Enough resources:
    - RAM: minimum 2 GB for CRM without local AI.
-   - RAM: 8 GB or more recommended for the current local AI model set.
+   - RAM: 10 GB dedicated allocation on the AI stack for the target local inference workload.
    - Storage: minimum 15 GB free.
 5. DNS/hostnames prepared:
-   - CRM: `joinerflow.example.com`
-   - Timeclock: `clock.joinerflow.example.com`
+   - CRM: `crm.millbrookfurniture.co.nz`
+   - Local CRM: `joinerflow.local`
+   - Timeclock: `clock.joinerflow.local`
 
 ## 2. Copy Repository to NAS
 
@@ -83,7 +84,7 @@ sudo ./deployment/synology/scripts/preflight-synology.sh
 
 If preflight fails, fix the remediation items before proceeding.
 
-## 4.1 Build Single DS225+ Zip Bundle
+## 4.1 Build Single Synology Zip Bundle
 
 From a prepared working copy, create a single install zip:
 
@@ -93,7 +94,7 @@ From a prepared working copy, create a single install zip:
 
 Output artifact:
 
-- `release/joinerflow-ds225-<timestamp>.zip`
+- `release/joinerflow-synology-<timestamp>.zip`
 
 This bundle preserves executable permissions for all `deployment/synology/*.sh` scripts.
 
@@ -111,7 +112,7 @@ Installer actions:
 4. Validates env safety.
 5. Installs npm dependencies and builds release artifacts.
 6. Builds and starts Docker services.
-7. Pulls Ollama models and validates inference.
+7. Skips NAS-local Ollama model installation when AI endpoints are remote.
 8. Runs health/storage checks.
 9. Creates initial backup snapshot.
 
@@ -129,7 +130,7 @@ sudo ./deployment/synology/scripts/check-backups.sh
 Expected:
 
 - API health returns `ok` at `/health`.
-- Ollama model list includes required models.
+- Ollama model list includes required models when remote AI is reachable.
 - SQLite path writable and integrity check `ok`, or PostgreSQL connection checks pass when `DATABASE_DRIVER=postgres`.
 - Latest backup snapshot contains required components.
 

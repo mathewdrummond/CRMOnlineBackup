@@ -8,27 +8,33 @@ Use these addresses:
 
 ```text
 https://crm.millbrookfurniture.co.nz
-https://timeclock.millbrookfurniture.co.nz
+https://joinerflow.local
+https://clock.joinerflow.local
 ```
 
-The NAS currently resolves locally to:
+The NAS target address is:
 
 ```text
-192.168.1.31
+192.168.1.32
 ```
+
+Historical/current compatibility notes:
+
+- `timeclock.millbrookfurniture.co.nz` has been used for the timeclock and remains a compatibility hostname until final DNS is confirmed.
+- `192.168.1.31` is a valid configured NAS/client-facing address but was offline during the 2026-05-24 documentation pass.
 
 ## Hosts File Entries
 
 On each computer that needs access, add this line to the hosts file:
 
 ```text
-192.168.1.31    crm.millbrookfurniture.co.nz timeclock.millbrookfurniture.co.nz
+192.168.1.32    crm.millbrookfurniture.co.nz joinerflow.local clock.joinerflow.local
 ```
 
 Optional, if old local aliases should keep working too:
 
 ```text
-192.168.1.31    crm.millbrookfurniture.co.nz timeclock.millbrookfurniture.co.nz joinerflow.local clock.joinerflow.local Data.local
+192.168.1.32    crm.millbrookfurniture.co.nz joinerflow.local clock.joinerflow.local timeclock.millbrookfurniture.co.nz Data.local
 ```
 
 ### macOS
@@ -75,13 +81,13 @@ Do not include a path.
 The time clock currently loads from:
 
 ```text
-https://timeclock.millbrookfurniture.co.nz
+https://clock.joinerflow.local
 ```
 
 If Google sign-in is required directly on the time clock hostname, also add:
 
 ```text
-https://timeclock.millbrookfurniture.co.nz
+https://clock.joinerflow.local
 ```
 
 ## Browser Security Warnings
@@ -92,7 +98,8 @@ The certificate must include these hostnames:
 
 ```text
 crm.millbrookfurniture.co.nz
-timeclock.millbrookfurniture.co.nz
+joinerflow.local
+clock.joinerflow.local
 ```
 
 ### Preferred Fix: Trusted Certificate
@@ -105,7 +112,8 @@ In Synology DSM:
 4. Add or import a certificate that covers both hostnames.
 5. Assign that certificate to the DSM/nginx service handling:
    - `crm.millbrookfurniture.co.nz`
-   - `timeclock.millbrookfurniture.co.nz`
+   - `joinerflow.local`
+   - `clock.joinerflow.local`
 
 If using Let's Encrypt, validation must be possible. This usually means either:
 
@@ -128,9 +136,10 @@ From a Mac or Linux computer:
 
 ```bash
 dscacheutil -q host -a name crm.millbrookfurniture.co.nz
-dscacheutil -q host -a name timeclock.millbrookfurniture.co.nz
+dscacheutil -q host -a name joinerflow.local
+dscacheutil -q host -a name clock.joinerflow.local
 curl -k https://crm.millbrookfurniture.co.nz/api/health
-curl -k https://timeclock.millbrookfurniture.co.nz/api/health
+curl -k https://clock.joinerflow.local/api/health
 ```
 
 Expected health response:
@@ -151,7 +160,8 @@ The Subject Alternative Name must include:
 
 ```text
 DNS:crm.millbrookfurniture.co.nz
-DNS:timeclock.millbrookfurniture.co.nz
+DNS:joinerflow.local
+DNS:clock.joinerflow.local
 ```
 
 ## Current NAS Routing Summary
@@ -162,7 +172,9 @@ DSM nginx proxies:
 
 ```text
 crm.millbrookfurniture.co.nz -> JoinerFlow Caddy on 127.0.0.1:8443
-timeclock.millbrookfurniture.co.nz -> JoinerFlow Caddy on 127.0.0.1:8443
+joinerflow.local -> JoinerFlow Caddy on 127.0.0.1:8443
+clock.joinerflow.local -> JoinerFlow Caddy on 127.0.0.1:8443
+timeclock.millbrookfurniture.co.nz -> compatibility route to JoinerFlow Caddy on 127.0.0.1:8443, REQUIRES VALIDATION before removal
 ```
 
 JoinerFlow containers should be healthy:

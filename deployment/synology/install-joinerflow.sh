@@ -57,11 +57,7 @@ log_info "Running production preflight contract checks."
 
 log_info "Building and starting production containers."
 compose_prod build
-if is_true "${AI_ENABLED:-true}"; then
-  compose_prod up -d --remove-orphans
-else
-  compose_prod up -d --remove-orphans postgres joinerflow-server joinerflow-client joinerflow-clock-client caddy
-fi
+bash "${SCRIPTS_DIR}/start-joinerflow-stack.sh"
 
 if is_true "${AI_ENABLED:-true}"; then
   log_info "Installing Ollama models."

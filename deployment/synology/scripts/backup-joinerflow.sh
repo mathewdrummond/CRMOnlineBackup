@@ -48,8 +48,16 @@ fi
 sync_dir "${FILESYSTEM_ROOT}" "${snapshot_dir}/filesystem"
 sync_dir "${JOINERFLOW_INSTALL_ROOT}/embeddings" "${snapshot_dir}/embeddings"
 if is_true "${AI_ENABLED:-true}"; then
-  sync_dir "/volume1/vector-data/qdrant" "${snapshot_dir}/vector-db/qdrant"
-  sync_dir "${JOINERFLOW_INSTALL_ROOT}/ai" "${snapshot_dir}/ai"
+  if uses_local_qdrant; then
+    sync_dir "/volume1/vector-data/qdrant" "${snapshot_dir}/vector-db/qdrant"
+  else
+    log_warn "Qdrant endpoint is remote (${QDRANT_URL}); NAS backup will not include remote vector storage."
+  fi
+  if uses_local_ollama; then
+    sync_dir "${JOINERFLOW_INSTALL_ROOT}/ai" "${snapshot_dir}/ai"
+  else
+    log_warn "Ollama endpoint is remote (${OLLAMA_BASE_URL}); NAS backup will not include remote model storage."
+  fi
 else
   log_warn "AI_ENABLED is false; skipping AI and vector database backups."
 fi

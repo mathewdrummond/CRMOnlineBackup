@@ -6,7 +6,7 @@ services:
     image: ghcr.io/open-webui/open-webui:main
     restart: unless-stopped
     environment:
-      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ai.millbrook:11434}
       WEBUI_AUTH: "False"
       TZ: ${TZ:-Pacific/Auckland}
     ports:
@@ -36,5 +36,8 @@ services:
       - ai-optional
 
 networks:
+  joinerflow-ai:
+    name: joinerflow-ai
+    driver: bridge
   joinerflow-internal:
     external: true

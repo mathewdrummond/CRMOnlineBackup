@@ -36,24 +36,27 @@ Common causes:
 Run:
 
 ```bash
-sudo /usr/local/bin/docker logs ollama --tail 200
 sudo ./deployment/synology/scripts/check-ai.sh
 ```
+
+If `OLLAMA_BASE_URL` or `QDRANT_URL` points to `ai.millbrook` or another remote AI host, check the AI host service logs instead of NAS-local Docker logs. Use `sudo /usr/local/bin/docker logs ollama --tail 200` only when the legacy NAS-local fallback is intentionally enabled.
 
 Common causes:
 
 1. Model pull incomplete.
 2. Insufficient RAM for concurrent model loading.
 3. Incorrect `OLLAMA_BASE_URL`.
-4. Model directory permission issue under `/volume1/joinerflow/ai/models`.
-5. Qdrant data directory issue under `/volume1/vector-data/qdrant`.
+4. Remote AI host unreachable over LAN/Tailscale.
+5. Chunker allowlist missing the active NAS/app-server source IP.
+6. Model directory permission issue under `/volume1/joinerflow/ai/models` when using NAS-local fallback.
+7. Qdrant data directory issue under `/volume1/vector-data/qdrant` when using NAS-local fallback.
 
 Mitigation:
 
 1. Keep `OLLAMA_NUM_PARALLEL=1`.
-2. Keep `OLLAMA_MAX_LOADED_MODELS=1`.
+2. Keep `OLLAMA_MAX_LOADED_MODELS` low enough for the AI host memory allocation.
 3. Keep only the active model set installed: `gemma3:4b`, `phi4-mini:latest`, and `nomic-embed-text:latest`.
-4. Restart Ollama and reinstall models.
+4. Restart Ollama on the AI host and reinstall models if needed.
 
 ## 4. Backup Validation Fails
 
@@ -87,8 +90,8 @@ sudo /usr/local/bin/docker stats --no-stream
 Actions:
 
 1. Purge old backups per retention policy.
-2. Remove unused Ollama models.
-3. Disable optional AI sidecar (`open-webui`) and keep core `qdrant` + `ollama` only.
+2. Remove unused Ollama models on the AI host or disable the legacy NAS-local fallback.
+3. Disable optional AI sidecar (`open-webui`) and keep core Qdrant + Ollama only.
 
 ## 6. Full Service Recovery
 

@@ -1,6 +1,6 @@
 # Millbrook Infrastructure Current State
 
-Last updated: 2026-05-23 21:45 NZST
+Last updated: 2026-05-24 17:17 NZST
 
 This document is the canonical living map for the Millbrook infrastructure platform. Update it as a standard part of every future infrastructure change, including service moves, VM/CT changes, port changes, storage changes, backup changes, DNS changes, and AI/search pipeline changes.
 
@@ -10,13 +10,13 @@ Do not store plaintext passwords or API secrets in this document. Use the known 
 
 This file is designed to be fed into a new Codex/session so the live system can be understood and safely inspected before changes are made.
 
-The current architecture is:
+The target architecture is:
 
-- Proxmox host runs central VM/CT infrastructure.
+- Proxmox host `PVE` at `192.168.1.99` runs central VM/CT infrastructure.
 - Synology NAS remains the JoinerFlow application host, storage appliance, file source, and backup target.
-- Proxmox CT 201 runs AI infrastructure: Ollama, Qdrant, and the JoinerFlow chunking worker.
+- A Proxmox-hosted AI services VM/container stack runs Ollama, Qdrant, and the JoinerFlow chunking worker.
 - JoinerFlow app on NAS orchestrates indexing/search and owns the production SQLite metadata database.
-- AI-heavy model/vector/chunk work is delegated to CT 201.
+- AI-heavy model/vector/chunk work is delegated to the AI stack with a target 10 GB dedicated AI memory allocation.
 
 ## Safety Rules
 
@@ -39,37 +39,103 @@ All production AI/search remediation work should be logged to:
 
 ## Network Map
 
-| Component | Hostname | IP | Role |
-|---|---:|---:|---|
-| Proxmox VE | `pve` / `PVE` | `192.168.1.34` | Hypervisor |
-| Synology NAS | `Data` | `192.168.1.32` | JoinerFlow app, storage, backups |
-| AI CT | `ai-millbrook.millbrook` | `192.168.1.40` | Ollama, Qdrant, chunk worker |
+LAN:
+
+```text
+Subnet: 192.168.1.0/24
+Gateway/router: 192.168.1.1, OpenWrt
+Current workstation observed during this update: 192.168.1.33
+Tailscale route present on workstation: 100.64.0.0/10 via utun4
+```
+
+| Component | Hostname | IP | Current network state | Role |
+|---|---:|---:|---|---|
+| Router | `openwrt` | `192.168.1.1` | reachable | LAN gateway |
+| Synology NAS | `Data` / `Data.local` | `192.168.1.32` | reachable; serving current CRM/timeclock hostnames | JoinerFlow app, storage, backups |
+| Synology NAS alternate/client-facing address | `Data` | `192.168.1.31` | valid configured address, but offline during 2026-05-24 check | JoinerFlow LAN access address when online |
+| Proxmox VE | `PVE` | `192.168.1.99` | target address; REQUIRES VALIDATION from LAN/Tailscale | Hypervisor |
+| Historical Proxmox VE address | `pve` / `PVE` | `192.168.1.34` | older documented address; not reachable from workstation during 2026-05-24 check | Historical reference |
+| AI stack | `ai.millbrook` / `ai-millbrook` | REQUIRES VALIDATION | target AI service address not yet confirmed after Proxmox IP standardization | Ollama, Qdrant, chunk worker |
+| Historical AI CT | `ai-millbrook.millbrook` | `192.168.1.40` | older documented address; ARP entry observed, but service ports timed out during 2026-05-24 check | Historical reference |
 | Pi-hole VM | `pihole-millbrook` | TBD | Planned/stopped |
 | Mathew Win11 VM | `mathew-win11-pro` | TBD | Planned/stopped |
 | Bruce Win11 VM | `bruce-win11-pro` | TBD | Planned/stopped |
 
+Observed local name resolution on 2026-05-24:
+
+```text
+crm.millbrookfurniture.co.nz       -> 192.168.1.32
+timeclock.millbrookfurniture.co.nz -> 192.168.1.32
+Data.local                         -> 192.168.1.32
+```
+
+Observed reachable service ports from the workstation on 2026-05-24:
+
+```text
+192.168.1.32:22    ssh reachable
+192.168.1.32:80    http reachable
+192.168.1.32:443   https reachable
+192.168.1.32:4000  refused from LAN; expected because API binds to 127.0.0.1 on NAS
+192.168.1.32:8080  JoinerFlow Caddy HTTP reachable
+192.168.1.32:8443  JoinerFlow Caddy HTTPS reachable
+```
+
+Observed unavailable service ports from the workstation on 2026-05-24:
+
+```text
+192.168.1.31       offline during check
+192.168.1.34:22    unavailable
+192.168.1.34:8006  unavailable
+192.168.1.40:22    timed out
+192.168.1.40:8088  timed out
+192.168.1.40:6333  timed out
+192.168.1.40:6334  timed out
+192.168.1.40:11434 timed out
+```
+
+Client-facing URLs verified healthy on 2026-05-24 while resolving to `192.168.1.32`:
+
+```text
+https://crm.millbrookfurniture.co.nz/api/health
+https://timeclock.millbrookfurniture.co.nz/api/health
+
+Response summary:
+status=ok
+mode=offline-local
+server_version=1.0.0
+```
+
 Expected local DNS records:
 
 ```text
-crm.millbrook        -> 192.168.1.32
-timeclock.millbrook  -> 192.168.1.32
-nas.millbrook        -> 192.168.1.32
-pve.millbrook        -> 192.168.1.34
-ai.millbrook         -> 192.168.1.40
-joinerflow.millbrook -> 192.168.1.32
-pihole.millbrook     -> future Pi-hole VM
+crm.millbrookfurniture.co.nz       -> 192.168.1.31 or 192.168.1.32 depending on active NAS address
+timeclock.millbrookfurniture.co.nz -> 192.168.1.31 or 192.168.1.32 depending on active NAS address
+crm.millbrook                      -> 192.168.1.32 while 192.168.1.31 is offline
+timeclock.millbrook                -> 192.168.1.32 while 192.168.1.31 is offline
+nas.millbrook                      -> 192.168.1.32 while 192.168.1.31 is offline
+pve.millbrook                      -> 192.168.1.99
+ai.millbrook                       -> AI stack IP, REQUIRES VALIDATION
+joinerflow.millbrook               -> 192.168.1.32 while 192.168.1.31 is offline
+pihole.millbrook                   -> future Pi-hole VM
 ```
 
 ## Proxmox Host
 
-Connection:
+Historical connection before target IP standardization:
 
 ```text
 SSH: root@192.168.1.34
 Web UI: https://192.168.1.34:8006
 ```
 
-Live state on 2026-05-23:
+Target connection:
+
+```text
+SSH: root@192.168.1.99
+Web UI: https://192.168.1.99:8006
+```
+
+Historical live state captured on 2026-05-23 before target IP standardization:
 
 ```text
 Hostname: pve
@@ -91,9 +157,9 @@ Guests:
 Useful commands:
 
 ```bash
-ssh root@192.168.1.34 'pveversion && pct list && qm list && free -h && df -h /'
-ssh root@192.168.1.34 'pct status 201 && pct config 201'
-ssh root@192.168.1.34 'pct exec 201 -- bash -lc "hostname -f; ip -4 -br addr; docker ps"'
+ssh root@192.168.1.99 'pveversion && pct list && qm list && free -h && df -h /'
+ssh root@192.168.1.99 'pct status 201 && pct config 201'
+ssh root@192.168.1.99 'pct exec 201 -- bash -lc "hostname -f; ip -4 -br addr; docker ps"'
 ```
 
 ## AI Host: CT 201
@@ -103,9 +169,9 @@ Identity:
 ```text
 Container ID: 201
 Hostname: ai-millbrook.millbrook
-IP: 192.168.1.40/24
+IP: REQUIRES VALIDATION; older CT 201 address was 192.168.1.40/24
 OS type: Ubuntu LXC
-Assigned RAM: 16 GiB
+Assigned RAM: target 10 GiB dedicated AI allocation; older CT 201 notes showed 16 GiB
 Root disk: /dev/loop0, 157G total, about 132G free at last check
 ```
 
@@ -155,10 +221,10 @@ Systemd services:
 AI chunker:
 
 ```text
-URL from NAS: http://192.168.1.40:8088
-Health: http://192.168.1.40:8088/health
+URL from NAS: `http://ai.millbrook:8088` once DNS is confirmed; older value was `http://192.168.1.40:8088`
+Health: `http://ai.millbrook:8088/health` once DNS is confirmed
 Bind: 0.0.0.0:8088
-Allowed clients in script default: 127.0.0.1, 192.168.1.32
+Allowed clients in script default: 127.0.0.1 and the active NAS/app-server source IP; verify whether this is `192.168.1.32`, `192.168.1.31`, or another app-server IP before changing it.
 ```
 
 The chunker algorithm is intentionally equivalent to `server/src/ai/knowledge/fileChunker.ts`, including chunk hashes, offsets, keyword text, and line numbers. It is a CPU offload service only. It does not write production databases.
@@ -166,10 +232,10 @@ The chunker algorithm is intentionally equivalent to `server/src/ai/knowledge/fi
 Validation commands:
 
 ```bash
-ssh root@192.168.1.34 'pct exec 201 -- systemctl status joinerflow-ai-chunker.service --no-pager'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:8088/health'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq "{status:.result.status, points:.result.points_count, size:.result.config.params.vectors.size}"'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/tags'
+ssh root@192.168.1.99 'pct exec 201 -- systemctl status joinerflow-ai-chunker.service --no-pager'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:8088/health'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq "{status:.result.status, points:.result.points_count, size:.result.config.params.vectors.size}"'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/tags'
 ```
 
 ## NAS: Data
@@ -231,9 +297,9 @@ Current JoinerFlow AI env:
 
 ```text
 AI_ENABLED=true
-OLLAMA_BASE_URL=http://192.168.1.40:11434
-QDRANT_URL=http://192.168.1.40:6333
-AI_CHUNKER_URL=http://192.168.1.40:8088
+OLLAMA_BASE_URL=http://ai.millbrook:11434
+QDRANT_URL=http://ai.millbrook:6333
+AI_CHUNKER_URL=http://ai.millbrook:8088
 AI_CHUNKER_TIMEOUT_MS=30000
 OLLAMA_PRIMARY_MODEL=gemma3:4b
 OLLAMA_FAST_MODEL=phi4-mini:latest
@@ -255,9 +321,9 @@ Health validation:
 
 ```bash
 ssh mathew@192.168.1.32 'curl -fsS http://127.0.0.1:4000/health'
-ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:8088/health'
-ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:6333/collections'
-ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:11434/api/tags'
+ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:8088/health'
+ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:6333/collections'
+ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:11434/api/tags'
 ```
 
 Docker validation:
@@ -273,7 +339,7 @@ Current flow:
 
 1. `joinerflow-server` on NAS scans allowed NAS folders.
 2. `joinerflow-server` extracts file text on NAS.
-3. `joinerflow-server` sends extracted text to AI host chunker at `http://192.168.1.40:8088/chunk`.
+3. `joinerflow-server` sends extracted text to the AI host chunker at `http://ai.millbrook:8088/chunk` once DNS is confirmed.
 4. AI host chunker returns chunk records.
 5. `joinerflow-server` requests embeddings from Ollama on CT 201.
 6. `joinerflow-server` writes chunk metadata/cache to SQLite on NAS.
@@ -318,8 +384,8 @@ Location:
 Host: CT 201 ai-millbrook
 Container: joinerflow-qdrant
 Storage: /opt/millbrook/qdrant
-REST: http://192.168.1.40:6333
-gRPC: 192.168.1.40:6334
+REST: http://ai.millbrook:6333
+gRPC: ai.millbrook:6334
 ```
 
 Collections:
@@ -339,8 +405,8 @@ entity_embeddings
 Validation:
 
 ```bash
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/entity_embeddings | jq'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:6333/collections/entity_embeddings | jq'
 ```
 
 ## Ollama
@@ -351,7 +417,7 @@ Location:
 Host: CT 201 ai-millbrook
 Container: ollama
 Storage: /opt/millbrook/ollama
-API: http://192.168.1.40:11434
+API: http://ai.millbrook:11434
 ```
 
 Models:
@@ -371,9 +437,9 @@ joinerflow-ollama-warmup.timer runs every 10 minutes.
 Validation:
 
 ```bash
-ssh root@192.168.1.34 'pct exec 201 -- systemctl status joinerflow-ollama-warmup.timer --no-pager'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/tags'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/embeddings -H "Content-Type: application/json" -d "{\"model\":\"nomic-embed-text:latest\",\"prompt\":\"dimension test\"}"'
+ssh root@192.168.1.99 'pct exec 201 -- systemctl status joinerflow-ollama-warmup.timer --no-pager'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/tags'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS http://127.0.0.1:11434/api/embeddings -H "Content-Type: application/json" -d "{\"model\":\"nomic-embed-text:latest\",\"prompt\":\"dimension test\"}"'
 ```
 
 ## Application Code Changes That Matter Operationally
@@ -426,8 +492,8 @@ ssh mathew@192.168.1.32 'cd /volume1/joinerflow-data/deployment/synology/docker 
 AI chunker redeploy:
 
 ```bash
-scp deployment/ai/chunker/joinerflow-ai-chunker.py deployment/ai/chunker/joinerflow-ai-chunker.service root@192.168.1.34:/tmp/
-ssh root@192.168.1.34 'pct push 201 /tmp/joinerflow-ai-chunker.py /usr/local/bin/joinerflow-ai-chunker --perms 0755 && pct push 201 /tmp/joinerflow-ai-chunker.service /etc/systemd/system/joinerflow-ai-chunker.service --perms 0644 && pct exec 201 -- bash -lc "systemctl daemon-reload && systemctl enable --now joinerflow-ai-chunker.service && systemctl restart joinerflow-ai-chunker.service"'
+scp deployment/ai/chunker/joinerflow-ai-chunker.py deployment/ai/chunker/joinerflow-ai-chunker.service root@192.168.1.99:/tmp/
+ssh root@192.168.1.99 'pct push 201 /tmp/joinerflow-ai-chunker.py /usr/local/bin/joinerflow-ai-chunker --perms 0755 && pct push 201 /tmp/joinerflow-ai-chunker.service /etc/systemd/system/joinerflow-ai-chunker.service --perms 0644 && pct exec 201 -- bash -lc "systemctl daemon-reload && systemctl enable --now joinerflow-ai-chunker.service && systemctl restart joinerflow-ai-chunker.service"'
 ```
 
 ## Backups And Rollback
@@ -449,15 +515,15 @@ env.ai
 Qdrant snapshots were created on CT 201 during remediation. Check:
 
 ```bash
-ssh root@192.168.1.34 'pct exec 201 -- find /opt/millbrook/qdrant/snapshots -maxdepth 3 -type f | sort'
+ssh root@192.168.1.99 'pct exec 201 -- find /opt/millbrook/qdrant/snapshots -maxdepth 3 -type f | sort'
 ```
 
 Before further AI/index changes:
 
 ```bash
 ssh mathew@192.168.1.32 'ts=$(date +%Y%m%d-%H%M%S); sudo mkdir -p /volume1/joinerflow/backups/manual-$ts; sudo cp -a /volume1/joinerflow/server/joinerflow.sqlite /volume1/joinerflow/backups/manual-$ts/joinerflow.sqlite; sudo cp -a /volume1/joinerflow-data/deployment/synology/env/.env.production /volume1/joinerflow/backups/manual-$ts/env.production; sudo cp -a /volume1/joinerflow-data/deployment/synology/env/.env.ai /volume1/joinerflow/backups/manual-$ts/env.ai; echo /volume1/joinerflow/backups/manual-$ts'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS -X POST http://127.0.0.1:6333/collections/knowledge_chunks/snapshots'
-ssh root@192.168.1.34 'pct exec 201 -- curl -fsS -X POST http://127.0.0.1:6333/collections/entity_embeddings/snapshots'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS -X POST http://127.0.0.1:6333/collections/knowledge_chunks/snapshots'
+ssh root@192.168.1.99 'pct exec 201 -- curl -fsS -X POST http://127.0.0.1:6333/collections/entity_embeddings/snapshots'
 ```
 
 Rollback options:
@@ -474,17 +540,19 @@ Current exposure is LAN-only based on known configuration.
 
 Important points:
 
-- Proxmox UI is local at `https://192.168.1.34:8006`.
+- Proxmox UI target is `https://192.168.1.99:8006`.
 - JoinerFlow server API binds to `127.0.0.1:4000` on NAS and is reached through Caddy.
-- Caddy exposes `8080` and `8443` on NAS LAN.
+- Caddy exposes `8080` and `8443` on the active NAS LAN address.
+- DSM/nginx owns normal HTTPS port `443` and proxies the CRM/timeclock hostnames to JoinerFlow Caddy.
 - Qdrant, Ollama, and the chunker bind on CT 201 LAN. They should remain LAN/Tailscale only and not be forwarded from the router.
-- AI chunker has an application-level client IP allowlist for `127.0.0.1` and `192.168.1.32`.
+- AI chunker has an application-level client IP allowlist for `127.0.0.1` and the NAS source IP. Verify whether the active NAS source IP is `192.168.1.31` or `192.168.1.32` before changing this allowlist.
 - No passwords are documented here.
 
 Potential future hardening:
 
 - Add host firewall rules on CT 201 limiting `11434`, `6333`, `6334`, and `8088` to NAS and trusted admin networks.
 - Add Tailscale ACLs for admin-only infrastructure management.
+- Confirm whether `192.168.1.31` and `192.168.1.32` are both intentional NAS addresses, and document their interface/VLAN/DHCP reservation ownership.
 - Add authenticated reverse proxy only if remote access is required.
 
 ## What Is Left To Do
@@ -492,6 +560,7 @@ Potential future hardening:
 High priority:
 
 - Configure and start Pi-hole VM 202, then move DNS intentionally with rollback.
+- Reconcile LAN DNS/hosts records for `192.168.1.31` and `192.168.1.32`; `192.168.1.31` is valid but was offline during the 2026-05-24 check.
 - Confirm Tailscale hostnames and ACLs for `pve`, `Data`, and `ai-millbrook`.
 - Add host firewall rules on CT 201 for AI service ports.
 - Add scheduled Qdrant snapshots and retention.
@@ -537,10 +606,10 @@ Use this sequence at the start of a new infrastructure session:
 
 ```bash
 # 1. Proxmox inventory
-ssh root@192.168.1.34 'hostname; pveversion | head -1; pct list; qm list; free -h; df -h /'
+ssh root@192.168.1.99 'hostname; pveversion | head -1; pct list; qm list; free -h; df -h /'
 
 # 2. AI host health
-ssh root@192.168.1.34 'pct exec 201 -- bash -lc "hostname -f; ip -4 -br addr; docker ps; systemctl is-active joinerflow-ai-chunker.service joinerflow-ollama-warmup.timer; curl -fsS http://127.0.0.1:8088/health; curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq \"{status:.result.status, points:.result.points_count, size:.result.config.params.vectors.size}\""'
+ssh root@192.168.1.99 'pct exec 201 -- bash -lc "hostname -f; ip -4 -br addr; docker ps; systemctl is-active joinerflow-ai-chunker.service joinerflow-ollama-warmup.timer; curl -fsS http://127.0.0.1:8088/health; curl -fsS http://127.0.0.1:6333/collections/knowledge_chunks | jq \"{status:.result.status, points:.result.points_count, size:.result.config.params.vectors.size}\""'
 
 # 3. NAS app health
 ssh mathew@192.168.1.32 'hostname; sudo /usr/local/bin/docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"; curl -fsS http://127.0.0.1:4000/health'
