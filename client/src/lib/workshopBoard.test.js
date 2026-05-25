@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   buildWorkshopBoardCards,
+  isInactiveWorkshopJob,
   getWorkshopStageForJob,
   getWorkshopStageStatus,
   groupWorkshopCardsByStage,
@@ -47,6 +48,28 @@ describe("workshop board helpers", () => {
     expect(cards[0].warnings).toContain("1 blocked task");
     expect(cards[0].notes).toContain("Watch the island overhang.");
     expect(groupWorkshopCardsByStage(cards).get("ready_for_install")).toHaveLength(1);
+  });
+
+  test("hides inactive jobs by default while allowing visibility modes", () => {
+    const jobs = [
+      { id: "job-active", title: "Active Job", status: "production" },
+      { id: "job-inactive", title: "Inactive Job", status: "inactive" },
+      { id: "job-completed", title: "Completed Job", status: "completed" },
+    ];
+
+    expect(isInactiveWorkshopJob(jobs[0])).toBe(false);
+    expect(isInactiveWorkshopJob(jobs[1])).toBe(true);
+
+    expect(buildWorkshopBoardCards({ jobs }).map((card) => card.id)).toEqual(["job-active"]);
+    expect(buildWorkshopBoardCards({ jobs, visibility: "all" }).map((card) => card.id).sort()).toEqual([
+      "job-active",
+      "job-completed",
+      "job-inactive",
+    ]);
+    expect(buildWorkshopBoardCards({ jobs, visibility: "inactive" }).map((card) => card.id).sort()).toEqual([
+      "job-completed",
+      "job-inactive",
+    ]);
   });
 
   test("moves cards between stages without mutating other cards", () => {

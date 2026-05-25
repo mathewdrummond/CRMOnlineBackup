@@ -56,7 +56,9 @@ https://clock.joinerflow.local, https://timeclock.millbrookfurniture.co.nz {
 
   @api path /api/*
   handle @api {
-    reverse_proxy joinerflow-server:4000
+    reverse_proxy joinerflow-server:4000 {
+      header_up X-Timeclock-Kiosk-Key {$TIMECLOCK_KIOSK_KEY}
+    }
   }
 
   handle {

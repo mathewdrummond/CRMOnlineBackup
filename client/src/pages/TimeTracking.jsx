@@ -14,6 +14,14 @@ const ExportTab = lazy(() => import("../components/time/ExportTab"));
 const ProductionHandoverPack = lazy(() => import("../components/time/ProductionHandoverPack"));
 const ReviewQueueTab = lazy(() => import("../components/time/ReviewQueueTab"));
 
+function resolveInitialTab(tab, exportEnabled) {
+  const normalized = tab === "clockin" ? "entries" : tab;
+  if (normalized === "export" && !exportEnabled) {
+    return "overview";
+  }
+  return normalized || "overview";
+}
+
 function TabLoading() {
   return (
     <div className="flex justify-center py-12">
@@ -22,7 +30,7 @@ function TabLoading() {
   );
 }
 
-export default function TimeTracking({ initialTab = "clockin" }) {
+export default function TimeTracking({ initialTab = "overview" }) {
   const { user, navigateToLogin } = useAuth();
   const { isModuleEnabled } = useModules();
   const [staff, setStaff] = useState([]);
@@ -36,14 +44,14 @@ export default function TimeTracking({ initialTab = "clockin" }) {
   const [activeTimeEntries, setActiveTimeEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => resolveInitialTab(initialTab, exportEnabled));
   const [exportDataLoaded, setExportDataLoaded] = useState(false);
   const [exportDataLoading, setExportDataLoading] = useState(false);
   const exportEnabled = isModuleEnabled("myob_export");
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
-    setActiveTab(initialTab === "export" && !exportEnabled ? "clockin" : initialTab);
+    setActiveTab(resolveInitialTab(initialTab, exportEnabled));
   }, [exportEnabled, initialTab]);
   useEffect(() => {
     if (exportEnabled && activeTab === "export" && !exportDataLoaded && !exportDataLoading) {
@@ -116,9 +124,11 @@ export default function TimeTracking({ initialTab = "clockin" }) {
     </div>
   );
 
+  const timeclockTabActive = activeTab === "overview" || activeTab === "entries";
+
   return (
     <div className="jf-reference-page jf-workshop-screen max-w-[1600px]">
-      <PageHeader title="Time Clock" subtitle={exportEnabled ? "Clock in, choose the job, open the handover pack, then get moving." : "Clock in, choose the job, open the handover pack, then get moving."} />
+      <PageHeader title="Time Clock" subtitle="Monitor live workshop activity and manage time entries from one place." />
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
@@ -144,17 +154,26 @@ export default function TimeTracking({ initialTab = "clockin" }) {
       )}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="mb-0 flex h-auto w-full flex-wrap justify-start">
-          <TabsTrigger className="flex-1 px-4 sm:flex-none" value="clockin">Clock In / Out</TabsTrigger>
+          <TabsTrigger className="flex-1 px-4 sm:flex-none" value="overview">Today</TabsTrigger>
+          <TabsTrigger className="flex-1 px-4 sm:flex-none" value="entries">Time Entries</TabsTrigger>
           <TabsTrigger className="flex-1 px-4 sm:flex-none" value="review">Time Needing Attention</TabsTrigger>
           <TabsTrigger className="flex-1 px-4 sm:flex-none" value="handover">Handover Pack</TabsTrigger>
           <TabsTrigger className="flex-1 px-4 sm:flex-none" value="timesheets">Timesheets</TabsTrigger>
           {exportEnabled ? <TabsTrigger className="flex-1 px-4 sm:flex-none" value="export">MYOB Export</TabsTrigger> : null}
         </TabsList>
-        <TabsContent className="mt-0" value="clockin">
-          <Suspense fallback={<TabLoading />}>
-            <ClockInTab user={user} staff={staff} jobs={jobs} jobOperations={jobOperations} />
-          </Suspense>
-        </TabsContent>
+        {timeclockTabActive ? (
+          <TabsContent className="mt-0" value={activeTab}>
+            <Suspense fallback={<TabLoading />}>
+              <ClockInTab
+                user={user}
+                staff={staff}
+                jobs={jobs}
+                jobOperations={jobOperations}
+                view={activeTab === "overview" ? "dashboard" : "manage"}
+              />
+            </Suspense>
+          </TabsContent>
+        ) : null}
         <TabsContent className="mt-0" value="review">
           <Suspense fallback={<TabLoading />}>
             <ReviewQueueTab staff={staff} jobs={allJobs.length ? allJobs : jobs} />
@@ -175,7 +194,7 @@ export default function TimeTracking({ initialTab = "clockin" }) {
         </TabsContent>
         <TabsContent className="mt-0" value="timesheets">
           <Suspense fallback={<TabLoading />}>
-            <TimesheetTab staff={staff} jobs={jobs} />
+            <TimesheetTab staff={staff} jobs={jobs} user={user} />
           </Suspense>
         </TabsContent>
         {exportEnabled ? (

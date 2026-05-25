@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDate } from "@/lib/helpers";
 import {
   WORKSHOP_BOARD_STAGES,
+  WORKSHOP_JOB_VISIBILITY_FILTERS,
   buildWorkshopBoardCards,
   getWorkshopStageStatus,
   groupWorkshopCardsByStage,
@@ -114,10 +115,14 @@ export default function WorkshopBoard({
   onAssignInstall,
 }) {
   const [search, setSearch] = useState("");
+  const [jobVisibilityFilter, setJobVisibilityFilter] = useState("active");
   const [stageFilter, setStageFilter] = useState(ALL_FILTER_VALUE);
   const [warningFilter, setWarningFilter] = useState(ALL_FILTER_VALUE);
   const [draggedCardId, setDraggedCardId] = useState("");
-  const cards = useMemo(() => buildWorkshopBoardCards({ jobs, quotes, jobOperations }), [jobOperations, jobs, quotes]);
+  const cards = useMemo(
+    () => buildWorkshopBoardCards({ jobs, quotes, jobOperations, visibility: jobVisibilityFilter }),
+    [jobOperations, jobVisibilityFilter, jobs, quotes]
+  );
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
     return cards.filter((card) => {
@@ -136,13 +141,23 @@ export default function WorkshopBoard({
 
   return (
     <div className="space-y-4" data-testid="workshop-board">
-      <div className="grid gap-3 rounded-2xl border bg-card p-3 md:grid-cols-[1fr_220px_180px]">
+      <div className="grid gap-3 rounded-2xl border bg-card p-3 lg:grid-cols-[1fr_200px_220px_180px]">
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search job, client, or number"
           className="min-h-[48px]"
         />
+        <Select value={jobVisibilityFilter} onValueChange={setJobVisibilityFilter}>
+          <SelectTrigger className="min-h-[48px]">
+            <SelectValue placeholder="Job visibility" />
+          </SelectTrigger>
+          <SelectContent>
+            {WORKSHOP_JOB_VISIBILITY_FILTERS.map((filter) => (
+              <SelectItem key={filter.value} value={filter.value}>{filter.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={stageFilter} onValueChange={setStageFilter}>
           <SelectTrigger className="min-h-[48px]">
             <SelectValue placeholder="Stage" />

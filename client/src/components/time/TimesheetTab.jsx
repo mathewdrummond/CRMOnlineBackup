@@ -12,7 +12,7 @@ import { Trash2 } from "lucide-react";
 
 const IS_TIMECLOCK_APP = import.meta.env.VITE_APP_KIND === "timeclock";
 
-export default function TimesheetTab({ staff }) {
+export default function TimesheetTab({ staff, user }) {
   const { clientMode } = useClientMode();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +42,7 @@ export default function TimesheetTab({ staff }) {
   const getActivityLabel = (entry) => entry.activity || getStageConfig(OPERATIONS, entry.operation)?.label || entry.operation?.replace(/_/g, " ") || "—";
   const getJobLabel = (entry) => entry.job_title || entry.job_name || "—";
   const groupedEntries = groupTimesheetDisplayEntries(entries, { getActivityLabel, getJobLabel });
+  const canDeleteEntries = !IS_TIMECLOCK_APP && String(user?.role || "").toLowerCase() === "admin";
 
   const deleteEntryGroup = async (entryGroup) => {
     const sourceIds = Array.isArray(entryGroup?.source_ids) && entryGroup.source_ids.length > 0
@@ -134,9 +135,11 @@ export default function TimesheetTab({ staff }) {
                     ) : (
                       <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">Pending</Badge>
                     )}
-                    <Button variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-destructive" onClick={() => deleteEntryGroup(entry)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {canDeleteEntries ? (
+                      <Button variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-destructive" onClick={() => deleteEntryGroup(entry)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : null}
                   </div>
                 );
               })}

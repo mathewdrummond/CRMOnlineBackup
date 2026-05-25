@@ -6,6 +6,16 @@ function createOpenAttendanceClockIn(staffId: string, clockIn = "2026-04-08T07:0
   return createEntityRecord("ClockIn", {
     staff_id: staffId,
     date: clockIn.slice(0, 10),
+    clock_in_time: clockIn,
+    clock_out_time: "",
+    total_hours: 0,
+  });
+}
+
+function createLegacyOpenAttendanceClockIn(staffId: string, clockIn = "2026-04-08T07:00:00.000Z") {
+  return createEntityRecord("ClockIn", {
+    staff_id: staffId,
+    date: clockIn.slice(0, 10),
     clock_in: clockIn,
     clock_out: "",
     total_hours: 0,
@@ -80,6 +90,48 @@ describe("time tracking service", () => {
     expect(refreshedSecond?.segments[0]).toMatchObject({
       started_at: "2026-04-08T09:15:00.000Z",
     });
+  });
+
+  test("allows starting timers when attendance is open with current clock-in fields", () => {
+    const staff = createEntityRecord("Staff", {
+      id: "staff-current-attendance",
+      name: "Current Attendance",
+      status: "active",
+    });
+    createOpenAttendanceClockIn(staff.id);
+
+    const started = startTimer({
+      staff_id: staff.id,
+      activity: "Shop Work NC",
+      description: "Workshop cleanup",
+    }, {
+      now: new Date("2026-04-08T08:00:00.000Z"),
+      requestSource: "unit-test",
+    });
+
+    expect(started.entry.status).toBe("active");
+    expect(started.entry.staff_id).toBe(staff.id);
+  });
+
+  test("keeps legacy open attendance records valid for timer starts", () => {
+    const staff = createEntityRecord("Staff", {
+      id: "staff-legacy-attendance",
+      name: "Legacy Attendance",
+      status: "active",
+    });
+    createLegacyOpenAttendanceClockIn(staff.id);
+
+    const started = startTimer({
+      staff_id: staff.id,
+      activity: "Shop Work NC",
+      description: "Workshop cleanup",
+    }, {
+      now: new Date("2026-04-08T08:00:00.000Z"),
+      requestSource: "unit-test",
+    });
+
+    expect(started.entry.status).toBe("active");
+    expect(started.entry.staff_id).toBe(staff.id);
   });
 
   test("switching timers uses one shared transition timestamp even when the client clock is slightly behind", () => {

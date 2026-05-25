@@ -3,6 +3,14 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import WorkshopBoard from "./WorkshopBoard";
 
+window.HTMLElement.prototype.scrollIntoView ||= vi.fn();
+window.HTMLElement.prototype.hasPointerCapture ||= vi.fn(() => false);
+window.HTMLElement.prototype.releasePointerCapture ||= vi.fn();
+
+function openVisibilityFilter() {
+  fireEvent.keyDown(screen.getAllByRole("combobox")[0], { key: "Enter" });
+}
+
 function renderBoard(props = {}) {
   const onMoveStage = vi.fn();
   render(
@@ -26,10 +34,19 @@ function renderBoard(props = {}) {
             contact_name: "Morgan Lee",
             status: "production",
           },
+          {
+            id: "job-3",
+            quote_id: "quote-3",
+            job_number: "JOB-0003",
+            title: "Dormant Vanity",
+            contact_name: "Taylor Brown",
+            status: "inactive",
+          },
         ]}
         quotes={[
           { id: "quote-1", quote_number: "QTE-0001" },
           { id: "quote-2", quote_number: "QTE-0002" },
+          { id: "quote-3", quote_number: "QTE-0003" },
         ]}
         jobOperations={[
           { id: "op-1", job_id: "job-1", status: "on_hold" },
@@ -53,6 +70,22 @@ describe("WorkshopBoard", () => {
 
     const productionStage = screen.getByTestId("workshop-stage-in_production");
     expect(within(productionStage).getByText("Wardrobe Fitout")).toBeInTheDocument();
+    expect(screen.queryByText("Dormant Vanity")).not.toBeInTheDocument();
+  });
+
+  test("filters inactive jobs through the visibility filter", async () => {
+    renderBoard();
+
+    openVisibilityFilter();
+    fireEvent.click(await screen.findByText("Active + inactive"));
+    expect(screen.getByText("Dormant Vanity")).toBeInTheDocument();
+    expect(screen.getByText("Smith Kitchen")).toBeInTheDocument();
+
+    openVisibilityFilter();
+    fireEvent.click(await screen.findByText("Inactive only"));
+    expect(screen.getByText("Dormant Vanity")).toBeInTheDocument();
+    expect(screen.queryByText("Smith Kitchen")).not.toBeInTheDocument();
+    expect(screen.queryByText("Wardrobe Fitout")).not.toBeInTheDocument();
   });
 
   test("filters cards by search text", () => {

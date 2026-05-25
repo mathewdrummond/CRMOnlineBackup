@@ -11,6 +11,7 @@ import ClockInWidget from "./ClockInWidget";
 import TimeEntryForm from "./TimeEntryForm";
 import TimeEntryTable from "./TimeEntryTable";
 import {
+  buildDailyClockInActivity,
   buildShiftSummary,
   buildTimeclockOverview,
   formatElapsedSeconds,
@@ -18,6 +19,7 @@ import {
   getLastSegment,
   getLiveTrackedSeconds,
   isBreakEntry,
+  normalizeDateOnly,
   normalizeTimeEntryStatus,
   sortTimeEntries,
 } from "@/lib/timeclock";
@@ -76,6 +78,156 @@ function replaceEntry(records, nextEntry) {
   const nextRecords = [...records];
   nextRecords[existingIndex] = nextEntry;
   return sortTimeEntries(nextRecords);
+}
+
+function removeEntry(records, entryId) {
+  return records.filter((record) => record.id !== entryId);
+}
+
+function MetricCard({ icon: Icon, label, value, className = "" }) {
+  return (
+    <Card className="jf-workshop-status-panel">
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className={`rounded-xl p-2 ${className}`}><Icon className="h-5 w-5" /></div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
+          <p className="text-2xl font-semibold text-foreground">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TodayActivityPanel({ activitySummary }) {
+  return (
+    <Card className="jf-workshop-status-panel">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Today's Activity</CardTitle>
+            <p className="text-xs text-muted-foreground">One attendance summary per staff member for today.</p>
+          </div>
+          <Badge variant="secondary">{activitySummary.length}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2 pt-0">
+        {activitySummary.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-6 text-sm text-muted-foreground">
+            No attendance activity recorded today.
+          </div>
+        ) : (
+          activitySummary.map((summary) => (
+            <div key={summary.staff_id || summary.staff_name} className="rounded-xl border border-border/70 bg-white/65 px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{summary.staff_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Total today: <span className="font-mono tabular-nums">{summary.total_hours.toFixed(2)}h</span>
+                  </p>
+                </div>
+                <Badge className={summary.is_active ? "border-emerald-200 bg-emerald-100 text-emerald-700" : ""} variant={summary.is_active ? "outline" : "secondary"}>
+                  {summary.is_active ? "Active" : "Clocked out"}
+                </Badge>
+              </div>
+              {summary.latest_activity_at ? (
+                <p className="mt-1 font-mono text-xs text-muted-foreground tabular-nums">
+                  {summary.is_active
+                    ? `Since ${format(new Date(summary.active_since || summary.latest_activity_at), "HH:mm")}`
+                    : `Latest ${format(new Date(summary.latest_activity_at), "HH:mm")}`}
+                </p>
+              ) : null}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReadOnlyShiftCard({ timer, staff, jobs }) {
+  const runningSegment = getLastSegment(timer);
+  const timerStart = runningSegment?.started_at || timer.clock_in || timer.startTime;
+  const [elapsed, setElapsed] = useState(getLiveTrackedSeconds(timer));
+  const breakTimer = isBreakEntry(timer);
+  const status = normalizeTimeEntryStatus(timer.status);
+  const member = staff.find((record) => record.id === timer.staff_id);
+  const job = jobs.find((record) => record.id === timer.job_id);
+  const summary = buildShiftSummary({
+    ...timer,
+    job_name: job?.title || job?.job_name || timer.job_name,
+    job_title: job?.title || job?.job_name || timer.job_title,
+    job_number: job?.job_number || timer.job_number,
+  });
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setElapsed(getLiveTrackedSeconds(timer));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [timer, timerStart]);
+
+  return (
+    <Card className={breakTimer ? "jf-workshop-timer-break" : "jf-workshop-timer-active"}>
+      <CardContent className="flex flex-col gap-4 p-4 md:p-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xl font-semibold text-foreground">{member?.name || timer.staff_name || "Unknown staff"}</p>
+            <Badge variant="outline" className={breakTimer ? "border-amber-300 text-amber-700" : status === "paused" ? "border-slate-300 text-slate-700" : "border-emerald-300 text-emerald-700"}>
+              {breakTimer ? "On break" : status === "paused" ? "Paused" : "Active shift"}
+            </Badge>
+            <Badge variant="secondary">{summary.activityLabel}</Badge>
+          </div>
+          <p className="mt-2 text-2xl font-bold leading-tight text-foreground">{summary.jobLabel}</p>
+          <p className="text-base text-muted-foreground">{summary.operationLabel}</p>
+          {timer.description ? <p className="mt-1 text-xs text-muted-foreground">{timer.description}</p> : null}
+        </div>
+        <div className="min-w-[190px] rounded-[10px] border border-border/55 bg-white/75 px-5 py-4 text-center">
+          <div className="font-mono text-4xl font-bold tracking-widest text-foreground tabular-nums">
+            {status === "paused" ? `${(getClosedTrackedMinutes(timer) / 60).toFixed(2)}h` : formatElapsedSeconds(elapsed)}
+          </div>
+          {timerStart && status !== "paused" ? (
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Since {format(new Date(timerStart), "HH:mm")}
+            </div>
+          ) : status === "paused" ? (
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Tracked</div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LiveAllocationPanel({ liveAllocation }) {
+  if (liveAllocation.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="jf-workshop-status-panel">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Live Allocation</CardTitle>
+            <p className="text-xs text-muted-foreground">Quick manager view of who is on what right now.</p>
+          </div>
+          <Badge variant="secondary">{liveAllocation.length}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2 pt-0">
+        {liveAllocation.map((item) => (
+          <div key={item.id} className="rounded-xl border border-border/70 bg-muted/20 px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-medium text-foreground">{item.staff_name}</p>
+              <Badge variant={item.status === "On break" ? "secondary" : "outline"}>{item.status}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-foreground">{item.detail}</p>
+            <p className="text-xs text-muted-foreground">{item.stage}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ActiveTimerCard({ timer, staff, jobs, onPause, onComplete, onStartBreak, onResumeBreak }) {
@@ -259,15 +411,24 @@ function PausedTimerCard({ timer, staff, jobs, onResume, onComplete }) {
   );
 }
 
-export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
+export default function ClockInTab({ user, staff, jobs, jobOperations = [], view = "combined" }) {
   const [entries, setEntries] = useState([]);
   const [clockIns, setClockIns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     void loadEntries();
   }, []);
+  useEffect(() => {
+    if (view !== "dashboard") {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => setNow(new Date()), 15000);
+    return () => window.clearInterval(interval);
+  }, [view]);
 
   const loadEntries = async () => {
     setLoading(true);
@@ -308,14 +469,26 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
   );
 
   const overview = useMemo(
-    () => buildTimeclockOverview({ activeEntries, completedEntries: [...pausedEntries, ...completedEntries], staff }),
-    [activeEntries, completedEntries, pausedEntries, staff]
+    () => buildTimeclockOverview({ activeEntries, completedEntries: [...pausedEntries, ...completedEntries], staff, todayValue: now }),
+    [activeEntries, completedEntries, now, pausedEntries, staff]
   );
 
   const liveAllocation = useMemo(
     () => summarizeLiveAllocation(activeEntries),
     [activeEntries]
   );
+  const todayClockIns = useMemo(() => {
+    const today = normalizeDateOnly(now);
+    return clockIns.filter((entry) => {
+      const dateValue = entry.date || entry.clock_in_time || entry.clock_in || entry.created_date;
+      return normalizeDateOnly(dateValue) === today;
+    });
+  }, [clockIns, now]);
+  const activitySummary = useMemo(
+    () => buildDailyClockInActivity(todayClockIns, now),
+    [now, todayClockIns]
+  );
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
   const handleStartEntry = async (entry) => {
     setError("");
@@ -443,6 +616,22 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
     }
   };
 
+  const handleDeleteEntry = async (id) => {
+    setError("");
+
+    try {
+      await crmApi.entities.TimeEntry.delete(id);
+      setEntries((current) => removeEntry(current, id));
+      toast({
+        title: "Time entry deleted",
+        description: "The recent time entry has been removed.",
+      });
+    } catch (actionError) {
+      setError(actionError?.message || "The time entry could not be deleted.");
+      throw actionError;
+    }
+  };
+
   const handleUpdateEntry = async (id, updates) => {
     setError("");
 
@@ -496,6 +685,108 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
     }
   };
 
+  const overviewCards = !IS_TIMECLOCK_APP ? (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MetricCard icon={Timer} label="Active Now" value={overview.activeNow} className="bg-emerald-100 text-emerald-700" />
+      <MetricCard icon={Coffee} label="On Break" value={overview.onBreak} className="bg-amber-100 text-amber-700" />
+      <MetricCard icon={Clock3} label="Tracked Today" value={`${overview.trackedTodayHours}h`} className="bg-blue-100 text-blue-700" />
+      <MetricCard icon={Users} label="Available Staff" value={overview.availableStaff} className="bg-slate-100 text-slate-700" />
+    </div>
+  ) : null;
+
+  const dashboardView = (
+    <>
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">Today</h2>
+            <p className="text-sm text-muted-foreground">Live workshop attendance, active shifts, and accumulated time for the day.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{activeEntries.length} live</Badge>
+            {pausedEntries.length > 0 ? <Badge variant="outline">{pausedEntries.length} paused</Badge> : null}
+          </div>
+        </div>
+
+        {overviewCards}
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Active Shifts</h3>
+                <p className="text-xs text-muted-foreground">Current job timers and break state.</p>
+              </div>
+            </div>
+            {activeEntries.length === 0 && pausedEntries.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex items-center justify-between gap-4 p-4">
+                  <div>
+                    <p className="text-xl font-semibold text-foreground">No live shifts</p>
+                    <p className="text-sm text-muted-foreground">No one currently has an active job timer.</p>
+                  </div>
+                  <Timer className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {activeEntries.map((timer) => (
+                  <ReadOnlyShiftCard key={timer.id} timer={timer} staff={staff} jobs={jobs} />
+                ))}
+                {pausedEntries.map((timer) => (
+                  <ReadOnlyShiftCard key={timer.id} timer={timer} staff={staff} jobs={jobs} />
+                ))}
+              </>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <TodayActivityPanel activitySummary={activitySummary} />
+            <LiveAllocationPanel liveAllocation={liveAllocation} />
+          </div>
+        </div>
+      </section>
+    </>
+  );
+
+  const manageView = (
+    <>
+      <section className="space-y-2">
+        <h2 className="text-2xl font-semibold text-foreground">Time Entries</h2>
+        <p className="text-sm text-muted-foreground">Review recent records, add manual corrections, and manage admin-only edits.</p>
+      </section>
+
+      <TimeEntryForm
+        staff={staff}
+        jobs={jobs}
+        jobOperations={jobOperations}
+        entries={[...activeEntries, ...pausedEntries, ...completedEntries]}
+        activeTimers={activeEntries}
+        clockIns={clockIns}
+        timersLoaded={!loading}
+        onStart={handleStartEntry}
+        onAddManual={handleManualEntry}
+        isAdmin={isAdmin}
+      />
+
+      {!loading ? (
+        <TimeEntryTable
+          entries={completedEntries}
+          onVoid={handleVoidEntry}
+          onEdit={handleUpdateEntry}
+          onDelete={!IS_TIMECLOCK_APP && isAdmin ? handleDeleteEntry : undefined}
+          staff={staff}
+          jobs={jobs}
+          isAdmin={isAdmin}
+        />
+      ) : (
+        <div className="flex justify-center py-12">
+          <div className="h-6 w-6 animate-spin rounded-full border-4 border-muted border-t-primary" />
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-5">
       {error ? (
@@ -508,6 +799,11 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      {view === "dashboard" ? dashboardView : null}
+      {view === "manage" ? manageView : null}
+      {view !== "combined" ? null : (
+        <>
 
       <ClockInWidget staff={staff} />
 
@@ -650,6 +946,7 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
           entries={completedEntries}
           onVoid={handleVoidEntry}
           onEdit={handleUpdateEntry}
+          onDelete={!IS_TIMECLOCK_APP && String(user?.role || "").toLowerCase() === "admin" ? handleDeleteEntry : undefined}
           staff={staff}
           jobs={jobs}
           isAdmin={String(user?.role || "").toLowerCase() === "admin"}
@@ -658,6 +955,8 @@ export default function ClockInTab({ user, staff, jobs, jobOperations = [] }) {
         <div className="flex justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-muted border-t-primary" />
         </div>
+      )}
+        </>
       )}
     </div>
   );

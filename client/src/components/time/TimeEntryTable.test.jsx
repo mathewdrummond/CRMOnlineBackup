@@ -88,6 +88,47 @@ describe("TimeEntryTable", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 
+  test("confirms admin deletion before deleting a recent time entry", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TimeEntryTable
+        entries={[
+          {
+            id: "time-delete",
+            staff_id: "staff-1",
+            staff_name: "Jamie Worker",
+            job_id: "job-1",
+            job_number: "JOB-0001",
+            job_name: "Kitchen install",
+            activity: "Labour",
+            description: "Duplicate",
+            date: "2026-04-04",
+            clock_in: "2026-04-04T08:00:00.000Z",
+            clock_out: "2026-04-04T09:00:00.000Z",
+            hours: 1,
+            exported: false,
+          },
+        ]}
+        staff={[{ id: "staff-1", name: "Jamie Worker", status: "active" }]}
+        jobs={[{ id: "job-1", job_number: "JOB-0001", title: "Kitchen install", status: "planning" }]}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+        isAdmin
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /delete time entry for jamie worker/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Delete this time entry? This action cannot be undone.")).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith("time-delete");
+    });
+  });
+
   test("shows segment history for a paused multi-segment timer and keeps it read-only", async () => {
     render(
       <TimeEntryTable
@@ -136,5 +177,29 @@ describe("TimeEntryTable", () => {
     expect(within(dialog).getByText("#2")).toBeInTheDocument();
     expect(within(dialog).getByText("90 min")).toBeInTheDocument();
     expect(within(dialog).getByText("45 min")).toBeInTheDocument();
+  });
+
+  test("hides delete controls for non-admin users", () => {
+    render(
+      <TimeEntryTable
+        entries={[
+          {
+            id: "time-readonly",
+            staff_id: "staff-1",
+            staff_name: "Alex Maker",
+            activity: "Labour",
+            date: "2026-04-04",
+            hours: 2,
+            exported: false,
+          },
+        ]}
+        staff={[{ id: "staff-1", name: "Alex Maker", status: "active" }]}
+        jobs={[]}
+        onDelete={vi.fn()}
+        isAdmin={false}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /delete time entry for alex maker/i })).not.toBeInTheDocument();
   });
 });

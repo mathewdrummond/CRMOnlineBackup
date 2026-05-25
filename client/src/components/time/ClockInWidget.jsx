@@ -6,8 +6,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { Clock, LogIn, LogOut, Trash2 } from "lucide-react";
+import { Clock, LogIn, LogOut } from "lucide-react";
 import { format } from "date-fns";
+import { buildDailyClockInActivity } from "@/lib/timeclock";
 
 export default function ClockInWidget({ staff }) {
   const queryClient = useQueryClient();
@@ -51,18 +52,6 @@ export default function ClockInWidget({ staff }) {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => crmApi.entities.ClockIn.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clockIns"] }),
-    onError: (error) => {
-      toast({
-        variant: "destructive",
-        title: "Clock session could not be deleted",
-        description: error instanceof Error ? error.message : "Try again in a moment.",
-      });
-    },
-  });
-
   const activeStaff = staff.filter((s) => s.status === "active");
   const staffById = useMemo(
     () =>
@@ -95,6 +84,10 @@ export default function ClockInWidget({ staff }) {
 
   const getActiveSession = (staffId) =>
     resolvedClockIns.find((c) => c.staff_id === staffId && !c.clock_out_time);
+  const activitySummary = useMemo(
+    () => buildDailyClockInActivity(resolvedClockIns, now),
+    [now, resolvedClockIns]
+  );
 
   useEffect(() => {
     let active = true;
@@ -214,34 +207,31 @@ export default function ClockInWidget({ staff }) {
           })}
         </div>
 
-        {resolvedClockIns.length > 0 && (
+        {activitySummary.length > 0 && (
           <div className="space-y-2 border-t border-border/45 pt-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Today's Activity</p>
             <div className="space-y-2">
-              {resolvedClockIns.map((entry) => (
-                <div key={entry.id} className="flex flex-col gap-2 rounded-[10px] border border-border/55 bg-white/55 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-base font-semibold">{entry.staff_name}</span>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                      {format(new Date(entry.clock_in_time), "HH:mm")}
-                      {entry.clock_out_time && ` → ${format(new Date(entry.clock_out_time), "HH:mm")}`}
+              {activitySummary.map((summary) => (
+                <div key={summary.staff_id || summary.staff_name} className="flex flex-col gap-2 rounded-[10px] border border-border/55 bg-white/55 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <span className="block truncate text-base font-semibold">{summary.staff_name}</span>
+                    <span className="block text-xs font-medium text-muted-foreground">
+                      Total today: <span className="font-mono tabular-nums">{summary.total_hours.toFixed(2)}h</span>
                     </span>
-                    {entry.clock_out_time ? (
-                      <Badge variant="secondary">{entry.total_hours}h</Badge>
-                    ) : (
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {summary.latest_activity_at ? (
+                      <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                        {summary.is_active
+                          ? `Since ${format(new Date(summary.active_since || summary.latest_activity_at), "HH:mm")}`
+                          : `Latest ${format(new Date(summary.latest_activity_at), "HH:mm")}`}
+                      </span>
+                    ) : null}
+                    {summary.is_active ? (
                       <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary">Clocked out</Badge>
                     )}
-                    <button
-                      onClick={() => {
-                        if (!window.confirm(`Delete ${entry.staff_name}'s clock session?`)) {
-                          return;
-                        }
-                        deleteMutation.mutate(entry.id);
-                      }}
-                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </div>
               ))}

@@ -260,4 +260,45 @@ describe("ClockInTab", () => {
       expect(screen.getAllByText("JOB-A · Kitchen A").length).toBeGreaterThan(0);
     });
   });
+
+  test("separates the CRM dashboard from the time entry management view", async () => {
+    mockList.mockResolvedValue([
+      {
+        id: "timer-active",
+        staff_id: "staff-1",
+        staff_name: "McAnulty, Jamie",
+        job_id: "job-a",
+        job_number: "JOB-A",
+        job_name: "Kitchen A",
+        activity: "Labour",
+        status: "active",
+        segments: [{ started_at: "2026-04-08T09:05:00.000Z" }],
+      },
+    ]);
+
+    const props = {
+      staff: [{ id: "staff-1", name: "McAnulty, Jamie", status: "active" }],
+      jobs: [{ id: "job-a", job_number: "JOB-A", title: "Kitchen A" }],
+      jobOperations: [],
+      user: { role: "admin" },
+    };
+
+    const { rerender } = render(<ClockInTab {...props} view="dashboard" />);
+
+    expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Active Shifts" })).toBeInTheDocument();
+    expect(screen.getAllByText("JOB-A · Kitchen A").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("time-entry-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("time-entry-table")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("clockin-widget")).not.toBeInTheDocument();
+
+    rerender(<ClockInTab {...props} view="manage" />);
+
+    expect(await screen.findByRole("heading", { name: "Time Entries" })).toBeInTheDocument();
+    expect(screen.getByTestId("time-entry-form")).toBeInTheDocument();
+    expect(screen.getByTestId("time-entry-table")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Today" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Active Shifts" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("clockin-widget")).not.toBeInTheDocument();
+  });
 });

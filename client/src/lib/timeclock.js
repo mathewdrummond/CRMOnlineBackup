@@ -203,7 +203,107 @@ export function isBreakEntry(entry) {
 }
 
 export function hasOpenAttendance(clockIns = [], staffId = "") {
-  return (clockIns || []).some((record) => record.staff_id === staffId && record.clock_in && !record.clock_out);
+  const normalizedStaffId = String(staffId || "").trim();
+  if (!normalizedStaffId) {
+    return false;
+  }
+
+  return (clockIns || []).some((record) => {
+    const recordStaffId = String(record?.staff_id || record?.staffId || "").trim();
+    if (recordStaffId !== normalizedStaffId) {
+      return false;
+    }
+
+    return Boolean(getClockInStart(record) && !getClockInEnd(record));
+  });
+}
+
+function getClockInStart(entry) {
+  return normalizeDateTime(entry?.clock_in_time || entry?.clock_in || entry?.start_time);
+}
+
+function getClockInEnd(entry) {
+  return normalizeDateTime(entry?.clock_out_time || entry?.clock_out || entry?.end_time);
+}
+
+export function getClockInWorkedMinutes(entry = {}, nowValue = new Date()) {
+  const start = getClockInStart(entry);
+  if (!start) {
+    return 0;
+  }
+
+  const end = getClockInEnd(entry);
+  if (end && entry?.total_hours != null) {
+    return Math.max(0, Math.round((Number(entry.total_hours) || 0) * 60));
+  }
+
+  const endValue = end || normalizeDateTime(nowValue);
+  if (!endValue) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round((new Date(endValue).getTime() - new Date(start).getTime()) / (1000 * 60)));
+}
+
+export function buildDailyClockInActivity(clockIns = [], nowValue = new Date()) {
+  const summaries = new Map();
+
+  (clockIns || []).forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+
+    const staffId = String(entry.staff_id || entry.staffId || "").trim();
+    const staffName = String(entry.staff_name || entry.staffName || "Unknown staff").trim() || "Unknown staff";
+    const key = staffId || staffName.toLowerCase();
+    const start = getClockInStart(entry);
+    const end = getClockInEnd(entry);
+    const isActive = Boolean(start && !end);
+    const latestActivityAt = end || start || normalizeDateTime(entry.updated_date || entry.created_date || entry.date);
+
+    const existing = summaries.get(key) || {
+      staff_id: staffId,
+      staff_name: staffName,
+      total_minutes: 0,
+      total_hours: 0,
+      is_active: false,
+      active_since: "",
+      latest_activity_at: "",
+      latest_entry: null,
+      session_count: 0,
+      entries: [],
+    };
+
+    existing.staff_id = existing.staff_id || staffId;
+    existing.staff_name = existing.staff_name === "Unknown staff" ? staffName : existing.staff_name;
+    existing.total_minutes += getClockInWorkedMinutes(entry, nowValue);
+    existing.is_active = existing.is_active || isActive;
+    existing.active_since = isActive && (!existing.active_since || start > existing.active_since) ? start : existing.active_since;
+    existing.latest_activity_at = latestActivityAt && latestActivityAt > existing.latest_activity_at ? latestActivityAt : existing.latest_activity_at;
+    existing.latest_entry = latestActivityAt && latestActivityAt === existing.latest_activity_at ? entry : existing.latest_entry;
+    existing.session_count += 1;
+    existing.entries.push(entry);
+
+    summaries.set(key, existing);
+  });
+
+  return [...summaries.values()]
+    .map((summary) => ({
+      ...summary,
+      total_hours: roundHours(summary.total_minutes / 60),
+    }))
+    .sort((left, right) => {
+      if (left.is_active !== right.is_active) {
+        return left.is_active ? -1 : 1;
+      }
+
+      const latestOrder = String(right.latest_activity_at || "").localeCompare(String(left.latest_activity_at || ""));
+      if (latestOrder !== 0) {
+        return latestOrder;
+      }
+
+      return String(left.staff_name || "").localeCompare(String(right.staff_name || ""));
+    });
 }
 
 export function activityRequiresJob(activity) {

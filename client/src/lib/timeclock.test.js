@@ -1,12 +1,15 @@
 import { describe, expect, test } from "vitest";
 import {
   BREAK_ACTIVITY,
+  buildDailyClockInActivity,
   activityRequiresJob,
   buildTimeclockOverview,
   calculateHoursBetween,
   detectTimeEntryOverlap,
   formatElapsedSeconds,
   getActiveEntryForStaff,
+  getClockInWorkedMinutes,
+  hasOpenAttendance,
   getLiveTrackedMinutes,
   getOpenSegment,
   getRecentSuggestions,
@@ -100,6 +103,94 @@ describe("timeclock helpers", () => {
     expect(overview.onBreak).toBe(1);
     expect(overview.trackedTodayHours).toBe(9.75);
     expect(overview.availableStaff).toBe(1);
+  });
+
+  test("groups daily attendance activity by staff member", () => {
+    const summary = buildDailyClockInActivity(
+      [
+        {
+          id: "richard-1",
+          staff_id: "staff-1",
+          staff_name: "Richard Constance",
+          clock_in_time: "2026-04-08T18:48:00.000Z",
+          clock_out_time: "2026-04-08T18:50:00.000Z",
+          total_hours: 0.03,
+        },
+        {
+          id: "richard-2",
+          staff_id: "staff-1",
+          staff_name: "Richard Constance",
+          clock_in_time: "2026-04-08T18:50:00.000Z",
+        },
+        {
+          id: "jamie-1",
+          staff_id: "staff-2",
+          staff_name: "Jamie McAnulty",
+          clock_in_time: "2026-04-08T19:27:00.000Z",
+          clock_out_time: "2026-04-08T19:28:00.000Z",
+          total_hours: 0.02,
+        },
+      ],
+      "2026-04-08T18:50:00.000Z"
+    );
+
+    expect(summary).toHaveLength(2);
+    const richard = summary.find((entry) => entry.staff_id === "staff-1");
+    const jamie = summary.find((entry) => entry.staff_id === "staff-2");
+    expect(richard).toMatchObject({
+      staff_name: "Richard Constance",
+      is_active: true,
+      session_count: 2,
+      total_hours: 0.03,
+    });
+    expect(richard.latest_entry.id).toBe("richard-2");
+    expect(jamie).toMatchObject({
+      staff_name: "Jamie McAnulty",
+      is_active: false,
+      session_count: 1,
+      total_hours: 0.02,
+    });
+  });
+
+  test("detects active attendance across current and legacy clock-in fields", () => {
+    const clockIns = [
+      {
+        staff_id: "staff-current",
+        clock_in_time: "2026-04-08T19:00:00.000Z",
+        clock_out_time: "",
+      },
+      {
+        staff_id: "staff-legacy",
+        clock_in: "2026-04-08T19:05:00.000Z",
+        clock_out: "",
+      },
+      {
+        staff_id: "staff-closed",
+        clock_in_time: "2026-04-08T19:10:00.000Z",
+        clock_out_time: "2026-04-08T19:20:00.000Z",
+      },
+    ];
+
+    expect(hasOpenAttendance(clockIns, "staff-current")).toBe(true);
+    expect(hasOpenAttendance(clockIns, "staff-legacy")).toBe(true);
+    expect(hasOpenAttendance(clockIns, "staff-closed")).toBe(false);
+    expect(hasOpenAttendance(clockIns, "missing")).toBe(false);
+  });
+
+  test("calculates live and overnight attendance durations safely", () => {
+    expect(getClockInWorkedMinutes(
+      {
+        clock_in_time: "2026-04-08T23:30:00.000Z",
+        clock_out_time: "2026-04-09T00:15:00.000Z",
+      },
+      "2026-04-09T00:30:00.000Z"
+    )).toBe(45);
+    expect(getClockInWorkedMinutes(
+      {
+        clock_in_time: "2026-04-08T23:30:00.000Z",
+      },
+      "2026-04-09T00:15:00.000Z"
+    )).toBe(45);
   });
 
   test("returns active entry and recent suggestions per staff member", () => {

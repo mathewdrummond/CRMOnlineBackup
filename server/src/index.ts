@@ -4916,7 +4916,12 @@ export async function createApp() {
       const expectedRowVersion = parseRowVersion(req.query.row_version, { required: true });
       const previousRecord = getEntityRecord(entity, id);
       if (entity === "TimeEntry") {
-        throw new RouteRequestError(409, "time_entry_delete_blocked", "Time entries are never permanently deleted. Void or exclude the entry instead.");
+        if (!isAdminActor(actor)) {
+          throw new RouteRequestError(403, "admin_required", "Only Office/Admin users may delete time entries.");
+        }
+        if (isExportLockedTimeEntry(previousRecord)) {
+          throw new RouteRequestError(409, "time_entry_export_locked", "Exported payroll or activity-slip entries are locked from deletion.");
+        }
       }
       if (entity === "ReportView" && previousRecord) {
         ensureReportViewAccess(req, previousRecord);

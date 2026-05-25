@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, Pencil, ShieldAlert } from "lucide-react";
+import { Eye, Pencil, ShieldAlert, Trash2 } from "lucide-react";
 import { useSortableRows } from "@/lib/tableSorting";
 import {
   ACTIVITY_OPTIONS,
@@ -139,9 +139,10 @@ const TIME_ENTRY_SORT_COLUMNS = {
   status: { accessor: (entry) => `${entry.activity || ""} ${formatStatusLabel(entry)} ${entry.exported ? "Exported" : "Pending"}`, type: "status" },
 };
 
-export default function TimeEntryTable({ entries, onVoid, onEdit, staff = [], jobs = [], isAdmin = false }) {
+export default function TimeEntryTable({ entries, onVoid, onEdit, onDelete, staff = [], jobs = [], isAdmin = false }) {
   const [editingEntry, setEditingEntry] = useState(null);
   const [detailEntry, setDetailEntry] = useState(null);
+  const [deleteEntry, setDeleteEntry] = useState(null);
   const [form, setForm] = useState(buildInitialForm({}));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -176,6 +177,12 @@ export default function TimeEntryTable({ entries, onVoid, onEdit, staff = [], jo
   const closeEdit = () => {
     setEditingEntry(null);
     setForm(buildInitialForm({}));
+    setError("");
+    setSaving(false);
+  };
+
+  const closeDelete = () => {
+    setDeleteEntry(null);
     setError("");
     setSaving(false);
   };
@@ -245,13 +252,30 @@ export default function TimeEntryTable({ entries, onVoid, onEdit, staff = [], jo
     }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteEntry?.id || !onDelete) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await onDelete(deleteEntry.id);
+      closeDelete();
+    } catch (deleteError) {
+      setError(deleteError?.message || "The time entry could not be deleted.");
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-border/50 bg-white/55">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xl">Recent Time Entries</CardTitle>
-            <p className="text-sm text-muted-foreground">Completed entries stay visible for review. Office/Admin can correct them, and entries are voided instead of deleted.</p>
+            <p className="text-sm text-muted-foreground">Completed entries stay visible for review. Office/Admin can correct or delete recent mistakes.</p>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -341,6 +365,20 @@ export default function TimeEntryTable({ entries, onVoid, onEdit, staff = [], jo
                             aria-label={`Void time entry for ${entry.staff_name}`}
                           >
                             <ShieldAlert className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {isAdmin && !entry.exported && onDelete ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              setDeleteEntry(entry);
+                              setError("");
+                            }}
+                            aria-label={`Delete time entry for ${entry.staff_name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         ) : null}
                       </div>
@@ -465,6 +503,38 @@ export default function TimeEntryTable({ entries, onVoid, onEdit, staff = [], jo
             <Button className="min-h-[44px]" variant="outline" onClick={closeEdit}>Cancel</Button>
             <Button className="min-h-[44px]" onClick={() => void saveEdit()} disabled={saving}>
               {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteEntry)} onOpenChange={(open) => { if (!open) closeDelete(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Time Entry</DialogTitle>
+            <DialogDescription>
+              Delete this time entry? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteEntry ? (
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-sm">
+              <p className="font-medium text-foreground">{deleteEntry.staff_name || "Unknown staff"}</p>
+              <p className="text-muted-foreground">
+                {[formatEntryDate(deleteEntry), formatEntryTime(deleteEntry.clock_in), formatEntryTime(deleteEntry.clock_out)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              <p className="text-muted-foreground">{getJobName(deleteEntry)}</p>
+            </div>
+          ) : null}
+
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="min-h-[44px]" variant="outline" onClick={closeDelete} disabled={saving}>Cancel</Button>
+            <Button className="min-h-[44px]" variant="destructive" onClick={() => void confirmDelete()} disabled={saving}>
+              {saving ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </DialogContent>

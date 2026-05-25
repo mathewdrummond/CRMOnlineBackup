@@ -223,6 +223,7 @@ services:
     environment:
       TZ: ${TZ:-Pacific/Auckland}
       JOINERFLOW_PUBLIC_HOST: ${JOINERFLOW_PUBLIC_HOST:-joinerflow.local}
+      TIMECLOCK_KIOSK_KEY: ${TIMECLOCK_KIOSK_KEY:-}
     ports:
       - "${JOINERFLOW_PROXY_HTTP_PORT:-80}:80"
       - "${JOINERFLOW_PROXY_HTTPS_PORT:-443}:443"

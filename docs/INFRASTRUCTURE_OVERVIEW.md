@@ -1,6 +1,6 @@
 # JoinerFlow Infrastructure Overview
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 This is the canonical overview for the intended Millbrook JoinerFlow infrastructure. For live inspection notes and dated observations, see [Millbrook Infrastructure Current State](millbrook-infrastructure-current-state.md).
 
@@ -12,9 +12,9 @@ JoinerFlow is a self-hosted workshop platform running on Millbrook-owned infrast
 |---|---|---:|---|
 | Hypervisor | `PVE` | `192.168.1.99` | Proxmox VE host for VMs/containers |
 | NAS/storage | `Data` | `192.168.1.32` | Synology storage, JoinerFlow runtime data, backups |
-| Application | JoinerFlow app server | REQUIRES VALIDATION | API, CRM UI, timeclock UI, database owner |
-| AI stack | AI VM/container stack | REQUIRES VALIDATION | Ollama, Qdrant, chunking, model warmup |
-| DNS | Pi-hole/local DNS | REQUIRES VALIDATION | Internal records and fallback DNS |
+| Application | Synology app stack on `Data` unless migrated | `192.168.1.32` current; `192.168.1.31` requires validation | API, CRM UI, timeclock UI, database owner |
+| AI stack | CT 201 `ai-millbrook` on Proxmox | Address REQUIRES VALIDATION | Ollama, Qdrant, chunking, model warmup |
+| DNS | Pi-hole/local DNS | Planned; REQUIRES VALIDATION | Internal records and fallback DNS |
 | Remote access | Tailscale mesh | Tailscale IPs require validation | Admin and support access |
 
 ## Production Principles
@@ -34,7 +34,7 @@ JoinerFlow is a self-hosted workshop platform running on Millbrook-owned infrast
 | `crm.millbrookfurniture.co.nz` | Primary CRM URL | Preferred production CRM domain |
 | `joinerflow.local` | Local CRM alias | Internal DNS/hosts fallback |
 | `clock.joinerflow.local` | Local timeclock alias | Internal DNS/hosts fallback |
-| `timeclock.millbrookfurniture.co.nz` | Historical/current timeclock URL | REQUIRES VALIDATION against final target domains |
+| `timeclock.millbrookfurniture.co.nz` | Current timeclock URL | Verified healthy on 2026-05-24; keep unless final domain policy changes |
 
 ## Data Ownership
 
@@ -45,8 +45,8 @@ JoinerFlow is a self-hosted workshop platform running on Millbrook-owned infrast
 | Imports | JoinerFlow API and NAS | `/volume1/joinerflow/imports` |
 | Logs | JoinerFlow API | `/volume1/joinerflow/logs` |
 | Backups | Synology/NAS scripts | `/volume1/joinerflow/backups` plus off-box copy |
-| Qdrant vectors | AI stack | Remote AI host storage; exact path REQUIRES VALIDATION |
-| Ollama models | AI stack | Remote AI host storage; exact path REQUIRES VALIDATION |
+| Qdrant vectors | AI stack | `/opt/millbrook/qdrant` on CT 201; snapshots under `/opt/millbrook/qdrant/snapshots` |
+| Ollama models | AI stack | `/opt/millbrook/ollama` on CT 201 |
 
 ## Dependency Order
 

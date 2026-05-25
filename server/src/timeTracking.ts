@@ -330,8 +330,8 @@ function hasOpenAttendanceClockIn(staffId: string) {
   }
 
   return listEntityRecords("ClockIn", { filters: { staff_id: staffId }, limit: 1000 }).some((record) => {
-    const clockIn = normalizeDateTime(record.clock_in);
-    const clockOut = normalizeDateTime(record.clock_out);
+    const clockIn = normalizeDateTime(record.clock_in ?? record.clock_in_time);
+    const clockOut = normalizeDateTime(record.clock_out ?? record.clock_out_time);
     return Boolean(clockIn) && !clockOut;
   });
 }

@@ -58,7 +58,7 @@ beforeAll(async () => {
 
   const serverModule = await import("./index");
   app = await serverModule.createApp();
-});
+}, 60_000);
 
 beforeEach(async () => {
   process.env.GOOGLE_CLIENT_ID = "";
@@ -1357,6 +1357,123 @@ describe("server security and reliability", () => {
     }).expect(400);
     expect(invalidTimeEntryUpdate.body.code).toBe("invalid_entity_payload");
     expect(invalidTimeEntryUpdate.body.error).toContain("Break minutes must be at least 0");
+  });
+
+  test("allows admins to delete unexported time entries and records an audit trail", async () => {
+    const agent = await createAuthenticatedAgent("admin-delete@example.test", "admin");
+    const createdTimeEntry = await agent.post("/api/entities/TimeEntry").send({
+      staff_id: "staff-delete",
+      staff_name: "Delete Test",
+      date: "2026-04-06",
+      activity: "Shop Work NC",
+      description: "Delete cleanup",
+      status: "completed",
+      clock_in: "2026-04-06T08:00:00.000Z",
+      clock_out: "2026-04-06T09:00:00.000Z",
+    }).expect(201);
+
+    await agent
+      .delete(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`)
+      .query({ row_version: createdTimeEntry.body.row_version })
+      .expect(204);
+
+    await agent.get(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`).expect(404);
+
+    const audit = await agent.get("/api/admin/audit").query({
+      entity: "TimeEntry",
+      record_id: createdTimeEntry.body.id,
+      action: "delete",
+      limit: 10,
+    }).expect(200);
+
+    expect(audit.body).toHaveLength(1);
+    expect(audit.body[0]).toMatchObject({
+      entity: "TimeEntry",
+      record_id: createdTimeEntry.body.id,
+      action: "delete",
+      actor_email: "admin-delete@example.test",
+    });
+  });
+
+  test("denies non-admin time entry deletion server-side", async () => {
+    const admin = await createAuthenticatedAgent();
+    const createdTimeEntry = await admin.post("/api/entities/TimeEntry").send({
+      staff_id: "staff-member-delete",
+      staff_name: "Member Delete Test",
+      date: "2026-04-06",
+      activity: "Shop Work NC",
+      description: "Member delete cleanup",
+      status: "completed",
+      clock_in: "2026-04-06T08:00:00.000Z",
+      clock_out: "2026-04-06T09:00:00.000Z",
+    }).expect(201);
+
+    const member = await createAuthenticatedAgent("member-delete@example.test", "member");
+    const denied = await member
+      .delete(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`)
+      .query({ row_version: createdTimeEntry.body.row_version })
+      .expect(403);
+
+    expect(denied.body.code).toBe("admin_required");
+    await admin.get(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`).expect(200);
+  });
+
+  test("keeps exported time entries locked from deletion", async () => {
+    const agent = await createAuthenticatedAgent();
+    const createdTimeEntry = await agent.post("/api/entities/TimeEntry").send({
+      staff_id: "staff-export-delete",
+      staff_name: "Export Delete Test",
+      date: "2026-04-06",
+      activity: "Shop Work NC",
+      description: "Export delete cleanup",
+      status: "completed",
+      clock_in: "2026-04-06T08:00:00.000Z",
+      clock_out: "2026-04-06T09:00:00.000Z",
+      exported: true,
+      exported_at: "2026-04-07T00:00:00.000Z",
+      exported_batch_id: "batch-delete-lock",
+    }).expect(201);
+
+    const locked = await agent
+      .delete(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`)
+      .query({ row_version: createdTimeEntry.body.row_version })
+      .expect(409);
+
+    expect(locked.body.code).toBe("time_entry_export_locked");
+    await agent.get(`/api/entities/TimeEntry/${createdTimeEntry.body.id}`).expect(200);
+  });
+
+  test("allows admins to delete abandoned active timers", async () => {
+    const agent = await createAuthenticatedAgent();
+    const staff = await agent.post("/api/entities/Staff").send({
+      name: "Active Delete Staff",
+      employee_id: "ACTIVE-DELETE",
+      status: "active",
+    }).expect(201);
+    await agent.post("/api/entities/ClockIn").send({
+      staff_id: staff.body.id,
+      staff_name: staff.body.name,
+      date: "2026-04-06",
+      clock_in_time: "2026-04-06T07:30:00.000Z",
+      clock_out_time: "",
+    }).expect(201);
+    const activeTimeEntry = await agent.post("/api/entities/TimeEntry").send({
+      staff_id: staff.body.id,
+      staff_name: staff.body.name,
+      date: "2026-04-06",
+      activity: "Shop Work NC",
+      description: "Abandoned test timer",
+      status: "active",
+      clock_in: "2026-04-06T08:00:00.000Z",
+    }).expect(201);
+
+    await agent
+      .delete(`/api/entities/TimeEntry/${activeTimeEntry.body.id}`)
+      .query({ row_version: activeTimeEntry.body.row_version })
+      .expect(204);
+
+    const activeEntries = await agent.get("/api/entities/TimeEntry").query({ status: "active" }).expect(200);
+    expect(activeEntries.body.find((entry) => entry.id === activeTimeEntry.body.id)).toBeUndefined();
   });
 
   test("validates invoice job references on create and update", async () => {

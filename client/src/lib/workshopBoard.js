@@ -37,6 +37,22 @@ export const WORKSHOP_BOARD_STAGES = [
   },
 ];
 
+export const WORKSHOP_JOB_VISIBILITY_FILTERS = [
+  { value: "active", label: "Active jobs" },
+  { value: "all", label: "Active + inactive" },
+  { value: "inactive", label: "Inactive only" },
+];
+
+const INACTIVE_WORKSHOP_JOB_STATUSES = new Set([
+  "archived",
+  "cancelled",
+  "canceled",
+  "closed",
+  "complete",
+  "completed",
+  "inactive",
+]);
+
 const STAGE_BY_ID = new Map(WORKSHOP_BOARD_STAGES.map((stage) => [stage.id, stage]));
 const STAGE_BY_STATUS = new Map(WORKSHOP_BOARD_STAGES.map((stage) => [stage.status, stage]));
 
@@ -47,6 +63,17 @@ function normalize(value) {
 function parseDate(value) {
   const timestamp = Date.parse(String(value || ""));
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+export function isInactiveWorkshopJob(job = {}) {
+  return INACTIVE_WORKSHOP_JOB_STATUSES.has(normalize(job.status));
+}
+
+export function matchesWorkshopJobVisibility(job = {}, visibility = "active") {
+  const inactive = isInactiveWorkshopJob(job);
+  if (visibility === "all") return true;
+  if (visibility === "inactive") return inactive;
+  return !inactive;
 }
 
 export function getWorkshopStageForJob(job = {}) {
@@ -80,7 +107,7 @@ export function buildWorkshopWarnings(job = {}, operations = []) {
   return warnings;
 }
 
-export function buildWorkshopBoardCards({ jobs = [], quotes = [], jobOperations = [] } = {}) {
+export function buildWorkshopBoardCards({ jobs = [], quotes = [], jobOperations = [], visibility = "active" } = {}) {
   const quoteById = new Map((Array.isArray(quotes) ? quotes : []).map((quote) => [String(quote.id || ""), quote]));
   const operationsByJobId = (Array.isArray(jobOperations) ? jobOperations : []).reduce((map, operation) => {
     const jobId = String(operation.job_id || "");
@@ -91,7 +118,7 @@ export function buildWorkshopBoardCards({ jobs = [], quotes = [], jobOperations 
   }, new Map());
 
   return (Array.isArray(jobs) ? jobs : [])
-    .filter((job) => !["complete", "completed", "cancelled", "inactive"].includes(normalize(job.status)))
+    .filter((job) => matchesWorkshopJobVisibility(job, visibility))
     .map((job) => {
       const quote = quoteById.get(String(job.quote_id || "")) || null;
       const operations = operationsByJobId.get(String(job.id || "")) || [];

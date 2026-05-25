@@ -15,7 +15,6 @@ import {
   deriveLabourCategory,
   getActiveEntryForStaff,
   getActivityMeta,
-  getOperationOptionsForJob,
   hasOpenAttendance,
   requiresCommentWhenJobless,
   getRecentSuggestions,
@@ -25,7 +24,6 @@ import {
 const emptyForm = {
   staff_id: "",
   job_id: "",
-  job_operation_id: "",
   date: format(new Date(), "yyyy-MM-dd"),
   activity: "Labour",
   description: "",
@@ -68,7 +66,6 @@ function clearLegacyActiveTimers() {
 export default function TimeEntryForm({
   staff,
   jobs,
-  jobOperations = [],
   entries = [],
   activeTimers = [],
   clockIns = [],
@@ -94,17 +91,9 @@ export default function TimeEntryForm({
   const selectedStaff = useMemo(() => staff.find((member) => member.id === form.staff_id) || null, [form.staff_id, staff]);
   const selectedJob = useMemo(() => jobs.find((job) => job.id === form.job_id) || null, [form.job_id, jobs]);
   const selectedActivity = useMemo(() => getActivityMeta(form.activity), [form.activity]);
-  const selectedOperation = useMemo(
-    () => jobOperations.find((operation) => operation.id === form.job_operation_id) || null,
-    [form.job_operation_id, jobOperations]
-  );
   const selectedActiveEntry = useMemo(
     () => getActiveEntryForStaff(activeTimers, form.staff_id),
     [activeTimers, form.staff_id]
-  );
-  const operationOptions = useMemo(
-    () => getOperationOptionsForJob(jobOperations, form.job_id),
-    [form.job_id, jobOperations]
   );
   const recentSuggestions = useMemo(
     () => getRecentSuggestions(entries, form.staff_id),
@@ -177,13 +166,11 @@ export default function TimeEntryForm({
       notes: form.description.trim(),
       labour_category: deriveLabourCategory({
         activity: form.activity,
-        job_operation_label: selectedOperation?.title || selectedOperation?.name || "",
-        workflow_phase: selectedOperation?.workflow_phase || "",
         description: form.description.trim(),
       }),
-      job_operation_id: form.job_operation_id || "",
-      job_operation_label: selectedOperation?.title || selectedOperation?.name || "",
-      workflow_phase: selectedOperation?.workflow_phase || "",
+      job_operation_id: "",
+      job_operation_label: "",
+      workflow_phase: "",
       status: "active",
       clock_in: new Date().toISOString(),
       entry_kind: form.activity === "Break" ? "break" : "work",
@@ -192,7 +179,6 @@ export default function TimeEntryForm({
     setForm((current) => ({
       ...current,
       job_id: "",
-      job_operation_id: "",
       description: "",
       activity: current.activity,
       date: format(new Date(), "yyyy-MM-dd"),
@@ -344,30 +330,6 @@ export default function TimeEntryForm({
                   />
                 </div>
               </div>
-
-              {form.job_id ? (
-                <div className="space-y-2">
-                  <Label htmlFor="time-entry-operation" className="text-base font-semibold">
-                    Workflow Stage / Task <span className="text-muted-foreground text-sm font-normal">(optional)</span>
-                  </Label>
-                  <Select
-                    value={form.job_operation_id || "__none"}
-                    onValueChange={(value) => setForm((current) => ({ ...current, job_operation_id: value === "__none" ? "" : value }))}
-                  >
-                    <SelectTrigger id="time-entry-operation" className="jf-workshop-touch">
-                      <SelectValue placeholder="Select task for better costing" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">No task selected</SelectItem>
-                      {operationOptions.map((operation) => (
-                        <SelectItem key={operation.id} value={operation.id}>
-                          {(operation.title || operation.name || "Untitled task")}{operation.workflow_phase ? ` — ${operation.workflow_phase}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
 
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Activity</Label>
