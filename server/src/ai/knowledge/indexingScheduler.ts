@@ -1,10 +1,15 @@
 import { listKnowledgeSources } from "./chunkStorage";
+import { getAiConfig } from "../aiConfig";
 import { scheduleKnowledgeQueue, triggerKnowledgeInitialScan } from "./indexingQueue";
 import { queueKnowledgeSourceReindex } from "./knowledgeIndexer";
 
 let schedulerTimer: NodeJS.Timeout | null = null;
 
 export function startKnowledgeIndexingScheduler() {
+  if (!getAiConfig().enabled) {
+    return;
+  }
+
   if (schedulerTimer) {
     return;
   }

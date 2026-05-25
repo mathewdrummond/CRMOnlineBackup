@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { crmApi } from "@/api/localApiClient";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -44,10 +44,10 @@ export default function TimeTracking({ initialTab = "overview" }) {
   const [activeTimeEntries, setActiveTimeEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const exportEnabled = isModuleEnabled("myob_export");
   const [activeTab, setActiveTab] = useState(() => resolveInitialTab(initialTab, exportEnabled));
   const [exportDataLoaded, setExportDataLoaded] = useState(false);
   const [exportDataLoading, setExportDataLoading] = useState(false);
-  const exportEnabled = isModuleEnabled("myob_export");
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {

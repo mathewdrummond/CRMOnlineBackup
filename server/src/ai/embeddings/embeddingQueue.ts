@@ -1,4 +1,5 @@
 import { getEntityRecord, listEntityRecords } from "../../db";
+import { getAiConfig } from "../aiConfig";
 import { logAiEvent } from "../aiLogger";
 import { indexEntityRecord, refreshEmbeddingIndex } from "./embeddingIndex";
 import { EMBEDDABLE_ENTITY_TYPES, isEmbeddableEntity } from "./entityEmbeddingMapper";
@@ -12,6 +13,7 @@ let timer: NodeJS.Timeout | null = null;
 let dropped = 0;
 
 export function queueEmbeddingRefresh(entity: string, recordId: string) {
+  if (!getAiConfig().enabled) return;
   if (!isEmbeddableEntity(entity) || !recordId) return;
   const config = getEmbeddingQueueConfig();
   pending.set(`${entity}:${recordId}`, { entity, recordId });
@@ -30,6 +32,7 @@ export function queueEmbeddingRefresh(entity: string, recordId: string) {
 }
 
 export function queueInitialEmbeddingBackfill() {
+  if (!getAiConfig().enabled) return;
   EMBEDDABLE_ENTITY_TYPES.forEach((entity) => {
     listEntityRecords(entity, { sort: "-updated_date", limit: 500 }).forEach((record) => {
       queueEmbeddingRefresh(entity, String(record.id || ""));

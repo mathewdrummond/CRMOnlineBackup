@@ -1062,8 +1062,10 @@ export async function createApp() {
     rate_limit_window_ms: aiConfig.rateLimitWindowMs,
     warnings: aiStartup.warnings,
   }, aiStartup.ok ? "info" : "warn");
-  queueInitialEmbeddingBackfill();
-  startKnowledgeIndexingScheduler();
+  if (aiConfig.enabled) {
+    queueInitialEmbeddingBackfill();
+    startKnowledgeIndexingScheduler();
+  }
 
   app.set("trust proxy", trustProxy);
   app.disable("x-powered-by");

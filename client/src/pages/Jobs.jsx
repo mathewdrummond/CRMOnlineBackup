@@ -36,6 +36,18 @@ const JOB_SORT_COLUMNS = {
   due_date: { accessor: ({ job }) => job.due_date, type: "date" },
 };
 
+const ALL_STATUSES_EXCLUDED = new Set(["cancelled", "canceled"]);
+
+function matchesJobStatusFilter(job, statusFilter) {
+  const normalizedStatus = String(job?.status || "").trim().toLowerCase();
+
+  if (statusFilter === "all") {
+    return !ALL_STATUSES_EXCLUDED.has(normalizedStatus);
+  }
+
+  return normalizedStatus === String(statusFilter || "").trim().toLowerCase();
+}
+
 export default function Jobs() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,7 +140,7 @@ export default function Jobs() {
     () =>
       jobRows.filter(({ job, operational }) => {
         const matchSearch = `${job.title} ${job.job_number} ${job.contact_name} ${job.company_name} ${operational.nextTaskName}`.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = statusFilter === "all" || job.status === statusFilter;
+        const matchStatus = matchesJobStatusFilter(job, statusFilter);
         const matchHealth = healthFilter === "all" || operational.health.label.toLowerCase().replace(/\s+/g, "_") === healthFilter;
         return matchSearch && matchStatus && matchHealth;
       }),

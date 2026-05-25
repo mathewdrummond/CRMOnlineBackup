@@ -1,4 +1,5 @@
 import { logAiEvent } from "../aiLogger";
+import { getAiConfig } from "../aiConfig";
 import {
   listKnowledgeQueueSummary,
   markKnowledgeTaskDone,
@@ -25,6 +26,10 @@ export function setKnowledgeQueuePaused(paused: boolean) {
 }
 
 export function scheduleKnowledgeQueue(delayMs = DEFAULT_QUEUE_DELAY_MS) {
+  if (!getAiConfig().enabled) {
+    return;
+  }
+
   if (queueTimer) {
     return;
   }
@@ -42,6 +47,14 @@ export function scheduleKnowledgeQueue(delayMs = DEFAULT_QUEUE_DELAY_MS) {
 }
 
 export async function processKnowledgeQueueBatch(options: { maxItems?: number } = {}) {
+  if (!getAiConfig().enabled) {
+    return {
+      processed: 0,
+      queue: listKnowledgeQueueSummary(),
+      paused: true,
+    };
+  }
+
   if (processing || isKnowledgeQueuePaused()) {
     return {
       processed: 0,
@@ -94,11 +107,19 @@ export async function processKnowledgeQueueBatch(options: { maxItems?: number } 
 }
 
 export function triggerKnowledgeInitialScan() {
+  if (!getAiConfig().enabled) {
+    return;
+  }
+
   queueAllEnabledKnowledgeSourceScans();
   scheduleKnowledgeQueue(250);
 }
 
 export function triggerKnowledgeReindex(sourceId: string) {
+  if (!getAiConfig().enabled) {
+    return;
+  }
+
   queueKnowledgeSourceReindex(sourceId);
   scheduleKnowledgeQueue(250);
 }
