@@ -1,6 +1,17 @@
 # Network Architecture
 
-Last updated: 2026-05-24
+Last updated: 2026-05-27
+
+## Current Infrastructure Stack
+
+Updated from live production check on 2026-05-27.
+
+- Active NAS/app host: Synology `Data` at `192.168.1.32`; `192.168.1.31` was not the active reachable host during this check.
+- Production source: `/volume1/joinerflow-data`; runtime data: `/volume1/joinerflow`.
+- Runtime containers: `joinerflow-server`, `joinerflow-client`, `joinerflow-clock-client`, `joinerflow-proxy`, and `joinerflow-postgres`; all were healthy during the check.
+- Database mode: `DATABASE_DRIVER=sqlite` with `DATABASE_SHADOW_WRITE=true`; authoritative DB is `/volume1/joinerflow/server/joinerflow.sqlite`; PostgreSQL runs as staged shadow/future primary at `127.0.0.1:15432`.
+- AI config: `OLLAMA_BASE_URL=http://192.168.1.40:11434` and `QDRANT_URL=http://192.168.1.40:6333`; from the NAS, the chunker on `192.168.1.40:8088` responded, while Ollama `11434` and Qdrant `6333` timed out during this check.
+- User-facing routes: `crm.millbrookfurniture.co.nz`, `joinerflow.local`, `clock.joinerflow.local`, and compatibility `timeclock.millbrookfurniture.co.nz` through Caddy/DSM; Caddy maps `8080->80` and `8443->443`.
 
 ## Target Network
 
@@ -13,7 +24,7 @@ Last updated: 2026-05-24
 | Remote access | Tailscale mesh VPN |
 | Public/raw service exposure | Avoid except through approved reverse proxy |
 
-Historical docs and dated observations may mention `192.168.1.34` for Proxmox and `192.168.1.40` for the AI CT. The target architecture standardizes on Proxmox `192.168.1.99`; current AI host addressing still REQUIRES VALIDATION.
+Historical docs and dated observations may mention `192.168.1.34` for Proxmox. The target architecture standardizes on Proxmox `192.168.1.99`; current JoinerFlow AI endpoint configuration points at `192.168.1.40`.
 
 ## DNS Records
 
@@ -24,7 +35,7 @@ Historical docs and dated observations may mention `192.168.1.34` for Proxmox an
 | `clock.joinerflow.local` | local reverse proxy for timeclock | target local alias |
 | `Data.local` | `192.168.1.32` | Synology mDNS/local name |
 | `pve.millbrook` or `PVE` | `192.168.1.99` | REQUIRES VALIDATION in DNS |
-| `ai.millbrook` | AI stack address | REQUIRES VALIDATION |
+| `ai.millbrook` | AI stack address | Should resolve to configured AI host `192.168.1.40`; DNS alias requires validation |
 | `pihole.millbrook` | Pi-hole/local DNS | planned |
 
 ## Reverse Proxy Pattern

@@ -1,6 +1,17 @@
 # AI Stack
 
-Last updated: 2026-05-24
+Last updated: 2026-05-27
+
+## Current Infrastructure Stack
+
+Updated from live production check on 2026-05-27.
+
+- Active NAS/app host: Synology `Data` at `192.168.1.32`; `192.168.1.31` was not the active reachable host during this check.
+- Production source: `/volume1/joinerflow-data`; runtime data: `/volume1/joinerflow`.
+- Runtime containers: `joinerflow-server`, `joinerflow-client`, `joinerflow-clock-client`, `joinerflow-proxy`, and `joinerflow-postgres`; all were healthy during the check.
+- Database mode: `DATABASE_DRIVER=sqlite` with `DATABASE_SHADOW_WRITE=true`; authoritative DB is `/volume1/joinerflow/server/joinerflow.sqlite`; PostgreSQL runs as staged shadow/future primary at `127.0.0.1:15432`.
+- AI config: `OLLAMA_BASE_URL=http://192.168.1.40:11434` and `QDRANT_URL=http://192.168.1.40:6333`; from the NAS, the chunker on `192.168.1.40:8088` responded, while Ollama `11434` and Qdrant `6333` timed out during this check.
+- User-facing routes: `crm.millbrookfurniture.co.nz`, `joinerflow.local`, `clock.joinerflow.local`, and compatibility `timeclock.millbrookfurniture.co.nz` through Caddy/DSM; Caddy maps `8080->80` and `8443->443`.
 
 ## Target
 
@@ -18,7 +29,7 @@ The intended AI stack is separate from the NAS application workload and has a re
 | Chunking | `joinerflow-ai-chunker.service` |
 | Cold-start mitigation | Ollama warmup timer or equivalent |
 
-The current AI host IP, VM ID, and storage paths REQUIRES VALIDATION after migration to Proxmox `PVE` at `192.168.1.99`.
+The current server configuration points AI traffic at `192.168.1.40`. During the 2026-05-27 check, the NAS reached the chunker health endpoint on `192.168.1.40:8088`, while Ollama `11434` and Qdrant `6333` timed out. Treat Ollama/Qdrant health as an open operational item before relying on AI search or model responses.
 
 ## Data Flow
 
@@ -34,9 +45,9 @@ The current AI host IP, VM ID, and storage paths REQUIRES VALIDATION after migra
 
 ```text
 AI_ENABLED=true
-OLLAMA_BASE_URL=http://<ai-host>:11434
-QDRANT_URL=http://<ai-host>:6333
-AI_CHUNKER_URL=http://<ai-host>:8088
+OLLAMA_BASE_URL=http://192.168.1.40:11434
+QDRANT_URL=http://192.168.1.40:6333
+AI_CHUNKER_URL=http://192.168.1.40:8088
 OLLAMA_PRIMARY_MODEL=gemma3:4b
 OLLAMA_FAST_MODEL=phi4-mini:latest
 OLLAMA_EMBED_MODEL=nomic-embed-text:latest

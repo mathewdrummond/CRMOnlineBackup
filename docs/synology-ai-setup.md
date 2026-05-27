@@ -1,5 +1,16 @@
 # AI Setup (Remote AI Stack + JoinerFlow)
 
+## Current Infrastructure Stack
+
+Updated from live production check on 2026-05-27.
+
+- Active NAS/app host: Synology `Data` at `192.168.1.32`; `192.168.1.31` was not the active reachable host during this check.
+- Production source: `/volume1/joinerflow-data`; runtime data: `/volume1/joinerflow`.
+- Runtime containers: `joinerflow-server`, `joinerflow-client`, `joinerflow-clock-client`, `joinerflow-proxy`, and `joinerflow-postgres`; all were healthy during the check.
+- Database mode: `DATABASE_DRIVER=sqlite` with `DATABASE_SHADOW_WRITE=true`; authoritative DB is `/volume1/joinerflow/server/joinerflow.sqlite`; PostgreSQL runs as staged shadow/future primary at `127.0.0.1:15432`.
+- AI config: `OLLAMA_BASE_URL=http://192.168.1.40:11434` and `QDRANT_URL=http://192.168.1.40:6333`; from the NAS, the chunker on `192.168.1.40:8088` responded, while Ollama `11434` and Qdrant `6333` timed out during this check.
+- User-facing routes: `crm.millbrookfurniture.co.nz`, `joinerflow.local`, `clock.joinerflow.local`, and compatibility `timeclock.millbrookfurniture.co.nz` through Caddy/DSM; Caddy maps `8080->80` and `8443->443`.
+
 ## Objective
 
 Configure local AI inference for JoinerFlow with the intended remote AI VM/container stack and deterministic safety controls. The older Synology-local Ollama/Qdrant path remains a fallback only.
@@ -26,15 +37,15 @@ Edit `deployment/synology/env/.env.ai`:
 
 ```env
 AI_ENABLED=true
-OLLAMA_BASE_URL=http://ai.millbrook:11434
+OLLAMA_BASE_URL=http://192.168.1.40:11434
 OLLAMA_PRIMARY_MODEL=gemma3:4b
 OLLAMA_FAST_MODEL=phi4-mini:latest
 OLLAMA_EMBED_MODEL=nomic-embed-text:latest
-QDRANT_URL=http://ai.millbrook:6333
+QDRANT_URL=http://192.168.1.40:6333
 QDRANT_COLLECTION_ENTITIES=entity_embeddings
 QDRANT_COLLECTION_KNOWLEDGE=knowledge_chunks
 QDRANT_REQUEST_TIMEOUT_MS=8000
-AI_CHUNKER_URL=http://ai.millbrook:8088
+AI_CHUNKER_URL=http://192.168.1.40:8088
 AI_CHUNKER_TIMEOUT_MS=30000
 AI_REQUEST_TIMEOUT_MS=90000
 AI_REQUEST_RETRIES=1

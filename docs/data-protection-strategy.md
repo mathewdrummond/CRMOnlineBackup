@@ -1,5 +1,16 @@
 # Data Protection Strategy
 
+## Current Infrastructure Stack
+
+Updated from live production check on 2026-05-27.
+
+- Active NAS/app host: Synology `Data` at `192.168.1.32`; `192.168.1.31` was not the active reachable host during this check.
+- Production source: `/volume1/joinerflow-data`; runtime data: `/volume1/joinerflow`.
+- Runtime containers: `joinerflow-server`, `joinerflow-client`, `joinerflow-clock-client`, `joinerflow-proxy`, and `joinerflow-postgres`; all were healthy during the check.
+- Database mode: `DATABASE_DRIVER=sqlite` with `DATABASE_SHADOW_WRITE=true`; authoritative DB is `/volume1/joinerflow/server/joinerflow.sqlite`; PostgreSQL runs as staged shadow/future primary at `127.0.0.1:15432`.
+- AI config: `OLLAMA_BASE_URL=http://192.168.1.40:11434` and `QDRANT_URL=http://192.168.1.40:6333`; from the NAS, the chunker on `192.168.1.40:8088` responded, while Ollama `11434` and Qdrant `6333` timed out during this check.
+- User-facing routes: `crm.millbrookfurniture.co.nz`, `joinerflow.local`, `clock.joinerflow.local`, and compatibility `timeclock.millbrookfurniture.co.nz` through Caddy/DSM; Caddy maps `8080->80` and `8443->443`.
+
 This application is a local-first CRM that currently keeps SQLite as the primary business store, with PostgreSQL infrastructure available for staged shadow writes and future primary operation. RAID or mirrored disks can help with a failed drive, but they do not protect against accidental deletion, application bugs, corrupted writes, ransomware, or bad imports. The recovery strategy is therefore based on verified recovery points, transactional writes, integrity checks, and safe restore promotion.
 
 ## Current Data Layer

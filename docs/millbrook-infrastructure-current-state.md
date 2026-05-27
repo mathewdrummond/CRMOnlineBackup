@@ -1,6 +1,17 @@
 # Millbrook Infrastructure Current State
 
-Last updated: 2026-05-24 17:17 NZST
+Last updated: 2026-05-27 17:17 NZST
+
+## Current Infrastructure Stack
+
+Updated from live production check on 2026-05-27.
+
+- Active NAS/app host: Synology `Data` at `192.168.1.32`; `192.168.1.31` was not the active reachable host during this check.
+- Production source: `/volume1/joinerflow-data`; runtime data: `/volume1/joinerflow`.
+- Runtime containers: `joinerflow-server`, `joinerflow-client`, `joinerflow-clock-client`, `joinerflow-proxy`, and `joinerflow-postgres`; all were healthy during the check.
+- Database mode: `DATABASE_DRIVER=sqlite` with `DATABASE_SHADOW_WRITE=true`; authoritative DB is `/volume1/joinerflow/server/joinerflow.sqlite`; PostgreSQL runs as staged shadow/future primary at `127.0.0.1:15432`.
+- AI config: `OLLAMA_BASE_URL=http://192.168.1.40:11434` and `QDRANT_URL=http://192.168.1.40:6333`; from the NAS, the chunker on `192.168.1.40:8088` responded, while Ollama `11434` and Qdrant `6333` timed out during this check.
+- User-facing routes: `crm.millbrookfurniture.co.nz`, `joinerflow.local`, `clock.joinerflow.local`, and compatibility `timeclock.millbrookfurniture.co.nz` through Caddy/DSM; Caddy maps `8080->80` and `8443->443`.
 
 This document is the canonical living map for the Millbrook infrastructure platform. Update it as a standard part of every future infrastructure change, including service moves, VM/CT changes, port changes, storage changes, backup changes, DNS changes, and AI/search pipeline changes.
 
@@ -52,16 +63,16 @@ Tailscale route present on workstation: 100.64.0.0/10 via utun4
 |---|---:|---:|---|---|
 | Router | `openwrt` | `192.168.1.1` | reachable | LAN gateway |
 | Synology NAS | `Data` / `Data.local` | `192.168.1.32` | reachable; serving current CRM/timeclock hostnames | JoinerFlow app, storage, backups |
-| Synology NAS alternate/client-facing address | `Data` | `192.168.1.31` | valid configured address, but offline during 2026-05-24 check | JoinerFlow LAN access address when online |
+| Synology NAS alternate/client-facing address | `Data` | `192.168.1.31` | not active/reachable during 2026-05-27 check | Historical or failover address only until revalidated |
 | Proxmox VE | `PVE` | `192.168.1.99` | target address; REQUIRES VALIDATION from LAN/Tailscale | Hypervisor |
 | Historical Proxmox VE address | `pve` / `PVE` | `192.168.1.34` | older documented address; not reachable from workstation during 2026-05-24 check | Historical reference |
-| AI stack | `ai.millbrook` / `ai-millbrook` | REQUIRES VALIDATION | target AI service address not yet confirmed after Proxmox IP standardization | Ollama, Qdrant, chunk worker |
-| Historical AI CT | `ai-millbrook.millbrook` | `192.168.1.40` | older documented address; ARP entry observed, but service ports timed out during 2026-05-24 check | Historical reference |
+| AI stack | `ai.millbrook` / `ai-millbrook` | `192.168.1.40` configured | chunker health responded; Ollama and Qdrant timed out from NAS during 2026-05-27 check | Ollama, Qdrant, chunk worker |
+| Historical AI CT | `ai-millbrook.millbrook` | `192.168.1.40` | now matches current configured AI endpoint; service health still needs remediation for Ollama/Qdrant | Historical reference |
 | Pi-hole VM | `pihole-millbrook` | TBD | Planned/stopped |
 | Mathew Win11 VM | `mathew-win11-pro` | TBD | Planned/stopped |
 | Bruce Win11 VM | `bruce-win11-pro` | TBD | Planned/stopped |
 
-Observed local name resolution on 2026-05-24:
+Observed local name resolution on 2026-05-27:
 
 ```text
 crm.millbrookfurniture.co.nz       -> 192.168.1.32
@@ -69,7 +80,7 @@ timeclock.millbrookfurniture.co.nz -> 192.168.1.32
 Data.local                         -> 192.168.1.32
 ```
 
-Observed reachable service ports from the workstation on 2026-05-24:
+Observed reachable service ports from the workstation on 2026-05-27:
 
 ```text
 192.168.1.32:22    ssh reachable
@@ -80,20 +91,20 @@ Observed reachable service ports from the workstation on 2026-05-24:
 192.168.1.32:8443  JoinerFlow Caddy HTTPS reachable
 ```
 
-Observed unavailable service ports from the workstation on 2026-05-24:
+Observed unavailable service ports from the workstation/NAS on 2026-05-27:
 
 ```text
 192.168.1.31       offline during check
 192.168.1.34:22    unavailable
 192.168.1.34:8006  unavailable
 192.168.1.40:22    timed out
-192.168.1.40:8088  timed out
+192.168.1.40:8088  AI chunker health reachable from NAS
 192.168.1.40:6333  timed out
 192.168.1.40:6334  timed out
 192.168.1.40:11434 timed out
 ```
 
-Client-facing URLs verified healthy on 2026-05-24 while resolving to `192.168.1.32`:
+Client-facing URLs verified healthy on 2026-05-27 while resolving to `192.168.1.32`:
 
 ```text
 https://crm.millbrookfurniture.co.nz/api/health
@@ -108,13 +119,13 @@ server_version=1.0.0
 Expected local DNS records:
 
 ```text
-crm.millbrookfurniture.co.nz       -> 192.168.1.31 or 192.168.1.32 depending on active NAS address
-timeclock.millbrookfurniture.co.nz -> 192.168.1.31 or 192.168.1.32 depending on active NAS address
+crm.millbrookfurniture.co.nz       -> 192.168.1.32 active production NAS
+timeclock.millbrookfurniture.co.nz -> 192.168.1.32 active production NAS
 crm.millbrook                      -> 192.168.1.32 while 192.168.1.31 is offline
 timeclock.millbrook                -> 192.168.1.32 while 192.168.1.31 is offline
 nas.millbrook                      -> 192.168.1.32 while 192.168.1.31 is offline
 pve.millbrook                      -> 192.168.1.99
-ai.millbrook                       -> AI stack IP, REQUIRES VALIDATION
+ai.millbrook                       -> 192.168.1.40 if DNS alias is enabled; otherwise use the explicit IP in env files
 joinerflow.millbrook               -> 192.168.1.32 while 192.168.1.31 is offline
 pihole.millbrook                   -> future Pi-hole VM
 ```
@@ -169,7 +180,7 @@ Identity:
 ```text
 Container ID: 201
 Hostname: ai-millbrook.millbrook
-IP: REQUIRES VALIDATION; older CT 201 address was 192.168.1.40/24
+IP: `192.168.1.40` configured in JoinerFlow env; Proxmox CT ownership still requires host-side validation
 OS type: Ubuntu LXC
 Assigned RAM: target 10 GiB dedicated AI allocation; older CT 201 notes showed 16 GiB
 Root disk: /dev/loop0, 157G total, about 132G free at last check
@@ -221,10 +232,10 @@ Systemd services:
 AI chunker:
 
 ```text
-URL from NAS: `http://ai.millbrook:8088` once DNS is confirmed; older value was `http://192.168.1.40:8088`
-Health: `http://ai.millbrook:8088/health` once DNS is confirmed
+URL from NAS: `http://192.168.1.40:8088`
+Health: `http://192.168.1.40:8088/health` responded during the 2026-05-27 NAS check
 Bind: 0.0.0.0:8088
-Allowed clients in script default: 127.0.0.1 and the active NAS/app-server source IP; verify whether this is `192.168.1.32`, `192.168.1.31`, or another app-server IP before changing it.
+Allowed clients in script default: 127.0.0.1 and the active NAS/app-server source IP; current active NAS source IP is `192.168.1.32`.
 ```
 
 The chunker algorithm is intentionally equivalent to `server/src/ai/knowledge/fileChunker.ts`, including chunk hashes, offsets, keyword text, and line numbers. It is a CPU offload service only. It does not write production databases.
@@ -297,9 +308,9 @@ Current JoinerFlow AI env:
 
 ```text
 AI_ENABLED=true
-OLLAMA_BASE_URL=http://ai.millbrook:11434
-QDRANT_URL=http://ai.millbrook:6333
-AI_CHUNKER_URL=http://ai.millbrook:8088
+OLLAMA_BASE_URL=http://192.168.1.40:11434
+QDRANT_URL=http://192.168.1.40:6333
+AI_CHUNKER_URL=http://192.168.1.40:8088
 AI_CHUNKER_TIMEOUT_MS=30000
 OLLAMA_PRIMARY_MODEL=gemma3:4b
 OLLAMA_FAST_MODEL=phi4-mini:latest
@@ -321,9 +332,9 @@ Health validation:
 
 ```bash
 ssh mathew@192.168.1.32 'curl -fsS http://127.0.0.1:4000/health'
-ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:8088/health'
-ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:6333/collections'
-ssh mathew@192.168.1.32 'curl -fsS http://ai.millbrook:11434/api/tags'
+ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:8088/health'
+ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:6333/collections'
+ssh mathew@192.168.1.32 'curl -fsS http://192.168.1.40:11434/api/tags'
 ```
 
 Docker validation:
@@ -339,7 +350,7 @@ Current flow:
 
 1. `joinerflow-server` on NAS scans allowed NAS folders.
 2. `joinerflow-server` extracts file text on NAS.
-3. `joinerflow-server` sends extracted text to the AI host chunker at `http://ai.millbrook:8088/chunk` once DNS is confirmed.
+3. `joinerflow-server` sends extracted text to the AI host chunker at `http://192.168.1.40:8088/chunk`.
 4. AI host chunker returns chunk records.
 5. `joinerflow-server` requests embeddings from Ollama on CT 201.
 6. `joinerflow-server` writes chunk metadata/cache to SQLite on NAS.
@@ -384,8 +395,8 @@ Location:
 Host: CT 201 ai-millbrook
 Container: joinerflow-qdrant
 Storage: /opt/millbrook/qdrant
-REST: http://ai.millbrook:6333
-gRPC: ai.millbrook:6334
+REST: http://192.168.1.40:6333
+gRPC: 192.168.1.40:6334
 ```
 
 Collections:
@@ -417,7 +428,7 @@ Location:
 Host: CT 201 ai-millbrook
 Container: ollama
 Storage: /opt/millbrook/ollama
-API: http://ai.millbrook:11434
+API: http://192.168.1.40:11434
 ```
 
 Models:
@@ -560,7 +571,7 @@ Potential future hardening:
 High priority:
 
 - Configure and start Pi-hole VM 202, then move DNS intentionally with rollback.
-- Reconcile LAN DNS/hosts records for `192.168.1.31` and `192.168.1.32`; `192.168.1.31` is valid but was offline during the 2026-05-24 check.
+- Reconcile LAN DNS/hosts records for `192.168.1.31` and `192.168.1.32`; `192.168.1.32` is the active production NAS and `192.168.1.31` was not reachable during the 2026-05-27 check.
 - Confirm Tailscale hostnames and ACLs for `pve`, `Data`, and `ai-millbrook`.
 - Add host firewall rules on CT 201 for AI service ports.
 - Add scheduled Qdrant snapshots and retention.
